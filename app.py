@@ -67,38 +67,38 @@ def submit_ticket():
     }
 })
 
-
 @app.route('/get_tickets', methods=['GET'])
 def get_tickets():
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT id, project, work_type, status, description, assignee, team, game_name, created_at, summary
-        FROM tickets
-    """)
-    rows = cur.fetchall()
-    print("Fetched rows:", rows)  # Add this for debug
-    cur.close()
-    conn.close()
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, project, work_type, status, description, assignee, team, game_name, created_at, summary
+            FROM tickets
+        """)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
 
-    tickets = []
-    for row in rows:
-        ticket = {
-            "id": row[0],
-            "project": row[1],
-            "workType": row[2],
-            "status": row[3],
-            "description": row[4],
-            "assignee": row[5],
-            "team": row[6],
-            "gameName": row[7],
-            "createdAt": row[8],
-            "summary": row[9]
-        }
-        print("Returning ticket:", ticket)  # DEBUG
-        tickets.append(ticket)
+        tickets = []
+        for row in rows:
+            ticket = {
+                "id": row[0],
+                "project": row[1],
+                "workType": row[2],
+                "status": row[3],
+                "description": row[4],
+                "assignee": row[5],
+                "team": row[6],
+                "gameName": row[7],
+                "createdAt": row[8].isoformat() if row[8] else None,
+                "summary": row[9]
+            }
+            tickets.append(ticket)
 
-    return jsonify(tickets)
+        return jsonify(tickets)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/update_ticket', methods=['POST'])
@@ -137,6 +137,37 @@ def update_ticket():
     cur.close()
     conn.close()
     return jsonify({"success": True})
+
+@app.route('/add_attachments/<int:ticket_id>', methods=['POST'])
+def add_attachments(ticket_id):
+    files = request.files.getlist('newAttachments')
+
+    if not files:
+        return jsonify({"success": False, "error": "No files uploaded"}), 400
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    # Optionally verify ticket exists first
+    cur.execute("SELECT 1 FROM tickets WHERE id=%s", (ticket_id,))
+    if not cur.fetchone():
+        cur.close()
+        conn.close()
+        return jsonify({"success": False, "error": "Ticket not found"}), 404
+
+    for file in files:
+        if file:
+            cur.execute("""
+                INSERT INTO ticket_attachments (ticket_id, filename, data)
+                VALUES (%s, %s, %s)
+            """, (ticket_id, file.filename, file.read()))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return jsonify({"success": True})
+
 
 @app.route('/attachment/<int:attachment_id>')
 def get_attachment(attachment_id):

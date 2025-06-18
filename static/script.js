@@ -10,12 +10,6 @@ const filterGame = document.getElementById("filterGame");
 const searchInput = document.getElementById("searchInput");
 const clearSearchBtn = document.getElementById("clearSearchBtn");
 
-// Invite modal
-const inviteModal = document.getElementById("inviteModal");
-const inviteForm = document.getElementById("inviteForm");
-const inviteCancelBtn = document.getElementById("inviteCancelBtn");
-const inviteBtn = document.getElementById("inviteBtn");
-
 // Detail modal elements
 const ticketDetailModal = document.getElementById('ticketDetailModal');
 const detailSummary = document.getElementById('detailSummary');
@@ -26,12 +20,8 @@ const detailDescription = document.getElementById('detailDescription');
 const detailAssignee = document.getElementById('detailAssignee');
 const detailTeam = document.getElementById('detailTeam');
 const detailGame = document.getElementById('detailGame');
-const detailAttachmentsList = document.getElementById('detailAttachmentsList');
 const closeDetailBtn = document.getElementById('closeDetailBtn');
 const saveTicketBtn = document.getElementById('saveTicketBtn');
-
-const uploadNewAttachmentsBtn = document.getElementById('uploadNewAttachmentsBtn');
-const newAttachmentInput = document.getElementById('newAttachmentInput');
 
 let currentTicket = null;
 
@@ -53,46 +43,22 @@ window.addEventListener("click", (e) => {
   }
 });
 
-// Submit new ticket form
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const formData = new FormData(form);
-
-  try {
-    const response = await fetch("/submit_ticket", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success) {
-        form.reset();
-        modal.style.display = "none";
-        await loadTickets();
-        openTicketDetail(result.ticket);
-      } else {
-        alert("Ticket submission failed on server.");
-      }
-    } else {
-      alert("Failed to create ticket. Server error.");
-    }
-  } catch (err) {
-    console.error("Error submitting ticket:", err);
-    alert("An error occurred. Check console.");
+// Save ticket to localStorage
+function saveTicket(ticket) {
+  const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
+  // Check if ticket with same id exists -> update else add
+  const index = tickets.findIndex(t => t.id === ticket.id);
+  if (index !== -1) {
+    tickets[index] = ticket;
+  } else {
+    tickets.push(ticket);
   }
-});
+  localStorage.setItem('tickets', JSON.stringify(tickets));
+}
 
-// Load tickets and render in columns
-async function loadTickets() {
-  const res = await fetch("/get_tickets");
-  if (!res.ok) {
-    alert("Failed to load tickets from server.");
-    return;
-  }
-  const tickets = await res.json();
-  console.log('Tickets fetched:', tickets);
+// Load tickets from localStorage and render
+function loadTickets() {
+  const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
 
   // Clear columns
   document.querySelectorAll(".un-column").forEach(col => {
@@ -100,7 +66,6 @@ async function loadTickets() {
   });
 
   tickets.forEach(ticket => {
-    console.log('Appending ticket:', ticket.id, ticket.status);
     const ticketDiv = document.createElement('div');
     ticketDiv.classList.add('ticket');
     ticketDiv.dataset.type = ticket.workType || "Unknown";
@@ -111,11 +76,9 @@ async function loadTickets() {
 
     ticketDiv.addEventListener('click', () => openTicketDetail(ticketDiv.ticketData));
 
-    const column = document.getElementById(ticket.status);
+    const column = document.getElementById(ticket.status) || document.querySelector('.un-column');
     if (column) {
       column.appendChild(ticketDiv);
-    } else {
-      console.warn(`Ticket with id=${ticket.id} has unknown status: ${ticket.status}`);
     }
   });
 
@@ -123,7 +86,6 @@ async function loadTickets() {
   applyFilters();
   applySearchFilter();
 }
-
 
 // Update Game filter dynamically from tickets
 function updateGameFilterOptions() {
@@ -187,80 +149,42 @@ clearSearchBtn.addEventListener("click", () => {
   applySearchFilter();
 });
 
-// Invite modal handlers
-inviteBtn.addEventListener("click", () => {
-  inviteModal.style.display = "flex";
-});
-inviteCancelBtn.addEventListener("click", () => {
-  inviteModal.style.display = "none";
-});
-inviteForm.addEventListener("submit", async (e) => {
+// Submit new ticket form
+form.addEventListener("submit", (e) => {
   e.preventDefault();
 
-  const name = document.getElementById("inviteName").value.trim();
-  const role = document.getElementById("inviteRole").value.trim();
-  const email = document.getElementById("inviteEmail").value.trim();
+  // Convert form data to ticket object
+  const formData = new FormData(form);
+  const ticket = {};
+  formData.forEach((value, key) => {
+    ticket[key] = value;
+  });
 
-  try {
-    const response = await fetch("/api/invite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, role, email })
-    });
+  ticket.id = Date.now().toString(); // simple unique ID
+  if (!ticket.status) ticket.status = "todo"; // default status column ID (adjust to your column ID)
+  if (!ticket.workType) ticket.workType = "General";
 
-    if (response.ok) {
-      alert(`Invite sent to ${name} (${email}) as ${role}`);
-      inviteForm.reset();
-      inviteModal.style.display = "none";
-    } else {
-      const error = await response.json();
-      alert(`Error: ${error.message || 'Failed to send invite'}`);
-    }
-  } catch (err) {
-    alert("Error sending invite. Check console.");
-    console.error(err);
-  }
+  saveTicket(ticket);
+
+  form.reset();
+  modal.style.display = "none";
+
+  loadTickets();
 });
 
 // Open ticket detail modal and fill fields
-async function openTicketDetail(ticket) {
+function openTicketDetail(ticket) {
   currentTicket = ticket;
   ticketDetailModal.classList.remove('hidden');
 
-  try {
-    const res = await fetch(`/get_ticket/${ticket.id}`);
-    if (!res.ok) throw new Error('Failed to fetch ticket details');
-
-    const fullTicket = await res.json();
-
-    detailSummary.value = fullTicket.summary || '';
-    detailProject.value = fullTicket.project || '';
-    detailType.value = fullTicket.workType || fullTicket.type || '';
-    detailStatus.value = fullTicket.status || '';
-    detailDescription.value = fullTicket.description || '';
-    detailAssignee.value = fullTicket.assignee || '';
-    detailTeam.value = fullTicket.team || '';
-    detailGame.value = fullTicket.gameName || fullTicket.game || '';
-
-    // Render attachments
-    if (!fullTicket.attachments || fullTicket.attachments.length === 0) {
-      detailAttachmentsList.textContent = 'No attachments';
-    } else {
-      detailAttachmentsList.innerHTML = ''; // clear
-      fullTicket.attachments.forEach(att => {
-        const a = document.createElement('a');
-        a.href = `/attachment/${att.id}`;
-        a.textContent = att.filename;
-        a.target = '_blank';
-        a.style.color = '#2563eb';
-        a.style.display = 'block';
-        detailAttachmentsList.appendChild(a);
-      });
-    }
-  } catch (err) {
-    console.error(err);
-    alert('Failed to load ticket details with attachments');
-  }
+  detailSummary.value = ticket.summary || '';
+  detailProject.value = ticket.project || '';
+  detailType.value = ticket.workType || '';
+  detailStatus.value = ticket.status || '';
+  detailDescription.value = ticket.description || '';
+  detailAssignee.value = ticket.assignee || '';
+  detailTeam.value = ticket.team || '';
+  detailGame.value = ticket.gameName || '';
 }
 
 // Close detail modal
@@ -275,74 +199,22 @@ saveTicketBtn.addEventListener('click', () => {
     return;
   }
 
-  const updatedTicket = {
-    id: currentTicket.id,
-    status: detailStatus.value,
-    description: detailDescription.value,
-    assignee: detailAssignee.value,
-    team: detailTeam.value,
-    gameName: detailGame.value,
-    summary: detailSummary.value,
-    project: detailProject.value,
-    workType: detailType.value
-  };
+  // Update current ticket with new values
+  currentTicket.summary = detailSummary.value;
+  currentTicket.project = detailProject.value;
+  currentTicket.workType = detailType.value;
+  currentTicket.status = detailStatus.value;
+  currentTicket.description = detailDescription.value;
+  currentTicket.assignee = detailAssignee.value;
+  currentTicket.team = detailTeam.value;
+  currentTicket.gameName = detailGame.value;
 
-  fetch('/update_ticket', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updatedTicket)
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        ticketDetailModal.classList.add('hidden');
-        loadTickets();
-      } else {
-        alert('Failed to update ticket');
-      }
-    })
-    .catch(() => alert('Error updating ticket'));
+  saveTicket(currentTicket);
+  ticketDetailModal.classList.add('hidden');
+  loadTickets();
 });
 
-// Upload new attachments button listener
-uploadNewAttachmentsBtn.addEventListener('click', async () => {
-  if (!currentTicket || !currentTicket.id) {
-    alert('No ticket selected for uploading attachments');
-    return;
-  }
-
-  const files = newAttachmentInput.files;
-  if (!files.length) {
-    alert('Please select files to upload');
-    return;
-  }
-
-  const formData = new FormData();
-  for (const file of files) {
-    formData.append('newAttachments', file);
-  }
-
-  try {
-    const res = await fetch(`/add_attachments/${currentTicket.id}`, {
-      method: 'POST',
-      body: formData
-    });
-
-    const result = await res.json();
-    if (result.success) {
-      alert('Attachments added successfully');
-      newAttachmentInput.value = ''; // clear file input
-      openTicketDetail(currentTicket); // Refresh attachments list
-    } else {
-      alert('Failed to upload attachments: ' + (result.error || 'Unknown error'));
-    }
-  } catch (err) {
-    console.error(err);
-    alert('Error uploading attachments');
-  }
-});
-
-// Initial load tickets on page load
-window.onload = () => {
+// Load tickets on page load
+window.onload = function() {
   loadTickets();
 };
