@@ -1,220 +1,309 @@
-// Modal elements
-const modal = document.getElementById("ticketModal");
-const openModalBtn = document.getElementById("openModalBtn");
-const cancelBtn = document.getElementById("cancelBtn");
-const form = document.getElementById("ticketForm");
-
-// Filters & search
-const filterType = document.getElementById("filterType");
-const filterGame = document.getElementById("filterGame");
-const searchInput = document.getElementById("searchInput");
-const clearSearchBtn = document.getElementById("clearSearchBtn");
-
-// Detail modal elements
-const ticketDetailModal = document.getElementById('ticketDetailModal');
-const detailSummary = document.getElementById('detailSummary');
-const detailProject = document.getElementById('detailProject');
-const detailType = document.getElementById('detailType');
-const detailStatus = document.getElementById('detailStatus');
-const detailDescription = document.getElementById('detailDescription');
-const detailAssignee = document.getElementById('detailAssignee');
-const detailTeam = document.getElementById('detailTeam');
-const detailGame = document.getElementById('detailGame');
-const closeDetailBtn = document.getElementById('closeDetailBtn');
-const saveTicketBtn = document.getElementById('saveTicketBtn');
-
-let currentTicket = null;
-
-// Open create ticket modal
-openModalBtn.addEventListener("click", () => {
-  modal.style.display = "flex";
-});
-
-// Cancel create ticket modal
-cancelBtn.addEventListener("click", () => {
-  modal.style.display = "none";
-  form.reset();
-});
-
-// Prevent modal close on outside click for create ticket (optional)
-window.addEventListener("click", (e) => {
-  if (e.target === modal) {
-    // Do nothing - keep modal open
+// Helper to safely parse JSON, returns null if parsing fails
+async function safeJson(response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
   }
-});
-
-// Save ticket to localStorage
-function saveTicket(ticket) {
-  const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
-  // Check if ticket with same id exists -> update else add
-  const index = tickets.findIndex(t => t.id === ticket.id);
-  if (index !== -1) {
-    tickets[index] = ticket;
-  } else {
-    tickets.push(ticket);
-  }
-  localStorage.setItem('tickets', JSON.stringify(tickets));
 }
 
-// Load tickets from localStorage and render
-function loadTickets() {
-  const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
-
-  // Clear columns
-  document.querySelectorAll(".un-column").forEach(col => {
-    col.querySelectorAll(".ticket").forEach(ticket => ticket.remove());
-  });
-
-  tickets.forEach(ticket => {
-    const ticketDiv = document.createElement('div');
-    ticketDiv.classList.add('ticket');
-    ticketDiv.dataset.type = ticket.workType || "Unknown";
-    ticketDiv.dataset.game = ticket.gameName || "Unknown";
-    ticketDiv.dataset.ticketId = ticket.id || "";
-    ticketDiv.textContent = `${ticket.summary || 'No summary'} [${ticket.workType || 'No type'}]`;
-    ticketDiv.ticketData = ticket;
-
-    ticketDiv.addEventListener('click', () => openTicketDetail(ticketDiv.ticketData));
-
-    const column = document.getElementById(ticket.status) || document.querySelector('.un-column');
-    if (column) {
-      column.appendChild(ticketDiv);
-    }
-  });
-
-  updateGameFilterOptions();
-  applyFilters();
-  applySearchFilter();
-}
-
-// Update Game filter dynamically from tickets
-function updateGameFilterOptions() {
-  const gamesSet = new Set();
-  document.querySelectorAll(".ticket").forEach(ticket => {
-    if (ticket.dataset.game) gamesSet.add(ticket.dataset.game);
-  });
-
-  // Clear existing options except default (index 0)
-  while (filterGame.options.length > 1) filterGame.remove(1);
-
-  Array.from(gamesSet).sort().forEach(game => {
-    const option = document.createElement("option");
-    option.value = game;
-    option.textContent = game;
-    filterGame.appendChild(option);
-  });
-}
-
-// Apply Type & Game filters
-function applyFilters() {
-  const selectedType = filterType.value;
-  const selectedGame = filterGame.value;
-
-  document.querySelectorAll(".ticket").forEach(ticket => {
-    const matchType = selectedType === "" || ticket.dataset.type === selectedType;
-    const matchGame = selectedGame === "" || ticket.dataset.game === selectedGame;
-
-    ticket.style.display = (matchType && matchGame) ? "" : "none";
-  });
-}
-
-// Apply Search filter
-function applySearchFilter() {
-  const query = searchInput.value.trim().toLowerCase();
-
-  document.querySelectorAll(".ticket").forEach(ticket => {
-    if (ticket.style.display !== "none") {
-      const text = ticket.textContent.toLowerCase();
-      ticket.style.display = text.includes(query) ? "" : "none";
-    }
-  });
-}
-
-// Filter and Search event listeners
-filterType.addEventListener("change", () => {
-  applyFilters();
-  applySearchFilter();
-});
-filterGame.addEventListener("change", () => {
-  applyFilters();
-  applySearchFilter();
-});
-searchInput.addEventListener("input", () => {
-  applyFilters();
-  applySearchFilter();
-});
-clearSearchBtn.addEventListener("click", () => {
-  searchInput.value = "";
-  applyFilters();
-  applySearchFilter();
+// Open Create Ticket modal
+document.getElementById('openModalBtn').addEventListener('click', () => {
+  document.getElementById('ticketModal').style.display = 'block';
 });
 
-// Submit new ticket form
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
+// Close Create Ticket modal on cancel
+document.getElementById('cancelBtn').addEventListener('click', () => {
+  document.getElementById('ticketModal').style.display = 'none';
+});
 
-  // Convert form data to ticket object
-  const formData = new FormData(form);
-  const ticket = {};
-  formData.forEach((value, key) => {
-    ticket[key] = value;
-  });
+// Open Invite User modal
+document.getElementById('inviteBtn').addEventListener('click', () => {
+  document.getElementById('inviteModal').style.display = 'block';
+});
 
-  ticket.id = Date.now().toString(); // simple unique ID
-  if (!ticket.status) ticket.status = "todo"; // default status column ID (adjust to your column ID)
-  if (!ticket.workType) ticket.workType = "General";
+// Close Invite User modal on cancel
+document.getElementById('inviteCancelBtn').addEventListener('click', () => {
+  document.getElementById('inviteModal').style.display = 'none';
+});
 
-  saveTicket(ticket);
+// Close Ticket Detail modal
+document.getElementById('closeDetailBtn').addEventListener('click', () => {
+  document.getElementById('ticketDetailModal').classList.add('hidden');
+});
 
-  form.reset();
-  modal.style.display = "none";
-
+// Clear search input and filters
+document.getElementById('clearSearchBtn').addEventListener('click', () => {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('filterType').value = '';
+  document.getElementById('filterGame').value = '';
   loadTickets();
 });
 
-// Open ticket detail modal and fill fields
-function openTicketDetail(ticket) {
-  currentTicket = ticket;
-  ticketDetailModal.classList.remove('hidden');
+// Submit Ticket form
+document.getElementById('ticketForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
 
-  detailSummary.value = ticket.summary || '';
-  detailProject.value = ticket.project || '';
-  detailType.value = ticket.workType || '';
-  detailStatus.value = ticket.status || '';
-  detailDescription.value = ticket.description || '';
-  detailAssignee.value = ticket.assignee || '';
-  detailTeam.value = ticket.team || '';
-  detailGame.value = ticket.gameName || '';
-}
+  const form = e.target;
+  const formData = new FormData(form);
 
-// Close detail modal
-closeDetailBtn.addEventListener('click', () => {
-  ticketDetailModal.classList.add('hidden');
+  try {
+    const response = await fetch('/submit_ticket', {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await safeJson(response);
+
+    if (response.ok) {
+      // alert('Ticket created! ID: ' + result.ticket_id);
+      form.reset();
+      document.getElementById('ticketModal').style.display = 'none'; // close modal
+      loadTickets(); // refresh ticket list
+    } else {
+      alert('Error: ' + (result?.error || response.statusText));
+    }
+  } catch (err) {
+    alert('Network error: ' + err.message);
+  }
 });
 
-// Save updates from detail modal
-saveTicketBtn.addEventListener('click', () => {
-  if (!currentTicket || !currentTicket.id) {
-    alert("No ticket selected or missing ticket ID!");
+// Invite User form submission
+document.getElementById('inviteForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const name = document.getElementById('inviteName').value.trim();
+  const role = document.getElementById('inviteRole').value.trim();
+  const email = document.getElementById('inviteEmail').value.trim();
+
+  if (!name || !role || !email) {
+    alert('Please fill all fields.');
     return;
   }
 
-  // Update current ticket with new values
-  currentTicket.summary = detailSummary.value;
-  currentTicket.project = detailProject.value;
-  currentTicket.workType = detailType.value;
-  currentTicket.status = detailStatus.value;
-  currentTicket.description = detailDescription.value;
-  currentTicket.assignee = detailAssignee.value;
-  currentTicket.team = detailTeam.value;
-  currentTicket.gameName = detailGame.value;
+  try {
+    const response = await fetch('/invite_user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, role, email })
+    });
 
-  saveTicket(currentTicket);
-  ticketDetailModal.classList.add('hidden');
-  loadTickets();
+    const result = await safeJson(response);
+
+    if (response.ok) {
+      alert('User invited!');
+      document.getElementById('inviteForm').reset();
+      document.getElementById('inviteModal').style.display = 'none'; // close modal
+    } else {
+      alert('Error: ' + (result?.error || response.statusText));
+    }
+  } catch (err) {
+    alert('Network error: ' + err.message);
+  }
 });
 
-// Load tickets on page load
-window.onload = function() {
-  loadTickets();
-};
+// Load tickets from backend
+async function loadTickets() {
+  const workType = document.getElementById('filterType').value;
+  const gameName = document.getElementById('filterGame').value;
+  const searchText = document.getElementById('searchInput').value.trim();
+
+  let url = '/get_tickets?';
+  if (workType) url += `workType=${encodeURIComponent(workType)}&`;
+  if (gameName) url += `gameName=${encodeURIComponent(gameName)}&`;
+  if (searchText) url += `search=${encodeURIComponent(searchText)}&`;
+
+  try {
+    const response = await fetch(url);
+    const tickets = await safeJson(response);
+
+    if (!response.ok) {
+      alert('Error loading tickets: ' + (tickets?.error || response.statusText));
+      return;
+    }
+
+    // Clear all columns first
+    const statuses = ['todo', 'inprocess', 'inreview', 'done', 'onhold', 'suggestion'];
+    statuses.forEach(id => {
+      const col = document.getElementById(id);
+      col.innerHTML = `<h2 class="un-column__header">${col.querySelector('h2').textContent}</h2>`;
+    });
+
+    tickets.forEach(ticket => {
+      let colId = ticket.status.toLowerCase().replace(/\s+/g, '');
+      if (!statuses.includes(colId)) colId = 'todo';
+
+      const col = document.getElementById(colId);
+
+      const ticketDiv = document.createElement('div');
+      ticketDiv.classList.add('ticket');
+      ticketDiv.textContent = ticket.summary;
+
+      ticketDiv.dataset.ticketId = ticket.id;
+
+      // Add click listener to show detail modal (optional)
+      ticketDiv.addEventListener('click', () => {
+        showTicketDetails(ticket);
+      });
+
+      col.appendChild(ticketDiv);
+    });
+  } catch (err) {
+    alert('Network error: ' + err.message);
+  }
+}
+
+// Load tickets on page load and filter changes
+window.addEventListener('load', loadTickets);
+document.getElementById('filterType').addEventListener('change', loadTickets);
+document.getElementById('filterGame').addEventListener('change', loadTickets);
+document.getElementById('searchInput').addEventListener('input', loadTickets);
+
+// Show ticket details in modal (you need to implement this function)
+function showTicketDetails(ticket) {
+  document.getElementById('ticketDetailModal').classList.remove('hidden');
+
+  document.getElementById('detailSummary').value = ticket.summary || '';
+  document.getElementById('detailProject').value = ticket.project || '';
+  document.getElementById('detailType').value = ticket.work_type || 'Task';
+  document.getElementById('detailStatus').value = ticket.status || 'To Do';
+  document.getElementById('detailDescription').value = ticket.description || '';
+  document.getElementById('detailAssignee').value = ticket.assignee || '';
+  document.getElementById('detailTeam').value = ticket.team || '';
+  document.getElementById('detailGame').value = ticket.game_name || '';
+  document.getElementById('saveTicketBtn').dataset.ticketId = ticket.id;
+
+  const attachmentsList = document.getElementById('detailAttachmentsList');
+  attachmentsList.innerHTML = '';
+
+  if (ticket.attachments && ticket.attachments.length > 0) {
+    const seen = new Set();
+
+    ticket.attachments.forEach(att => {
+      if (seen.has(att.filename)) return;
+      seen.add(att.filename);
+
+      const ext = att.filename.split('.').pop().toLowerCase();
+      const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext);
+
+      const itemDiv = document.createElement('div');
+      itemDiv.classList.add('attachment-item');
+      itemDiv.dataset.attachmentId = att.id;
+
+      if (isImage) {
+        const img = document.createElement('img');
+        img.src = `/attachment/${att.id}`;
+        img.alt = att.filename;
+        itemDiv.appendChild(img);
+      }
+
+      const link = document.createElement('a');
+      link.href = `/attachment/${att.id}`;
+      link.textContent = att.filename;
+      link.target = '_blank';
+      itemDiv.appendChild(link);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = 'Remove';
+      removeBtn.classList.add('remove-attachment-btn');
+      removeBtn.addEventListener('click', async () => {
+        if (confirm(`Are you sure you want to remove "${att.filename}"?`)) {
+          await removeAttachment(att.id, ticket.id);
+        }
+      });
+      itemDiv.appendChild(removeBtn);
+
+      attachmentsList.appendChild(itemDiv);
+    });
+  } else {
+    attachmentsList.textContent = 'No attachments';
+  }
+} 
+
+async function removeAttachment(attachmentId, ticketId) {
+  try {
+    const response = await fetch(`/delete_attachment/${attachmentId}`, { method: 'DELETE' });
+    const result = await safeJson(response);
+
+    if (!response.ok) {
+      alert('Error deleting attachment: ' + (result?.error || response.statusText));
+      return;
+    }
+
+    const updatedTicketResponse = await fetch(`/get_ticket/${ticketId}`);
+
+    if (!updatedTicketResponse.ok) {
+      document.getElementById('ticketDetailModal').classList.add('hidden');
+      loadTickets();  // reload to reflect changes
+      return;
+    }
+
+    const updatedTicket = await safeJson(updatedTicketResponse);
+    showTicketDetails(updatedTicket);
+
+  } catch (err) {
+    alert('Network error: ' + err.message);
+  }
+}
+// Update ticket button (with attachment upload support)
+document.getElementById('saveTicketBtn').addEventListener('click', async () => {
+  const ticketId = document.getElementById('saveTicketBtn').dataset.ticketId;
+  if (!ticketId) {
+    alert('No ticket selected');
+    return;
+  }
+
+  const fileInput = document.getElementById('newAttachmentInput');
+
+  try {
+    // 1) Update ticket details (JSON)
+    const payload = {
+      summary: document.getElementById('detailSummary').value,
+      project: document.getElementById('detailProject').value,
+      work_type: document.getElementById('detailType').value,
+      status: document.getElementById('detailStatus').value,
+      description: document.getElementById('detailDescription').value,
+      assignee: document.getElementById('detailAssignee').value,
+      team: document.getElementById('detailTeam').value,
+      game_name: document.getElementById('detailGame').value,
+    };
+
+    const updateResp = await fetch(`/update_ticket/${ticketId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const updateResult = await safeJson(updateResp);
+    if (!updateResp.ok) {
+      alert('Error updating ticket: ' + (updateResult?.error || updateResp.statusText));
+      return;
+    }
+
+    // 2) Upload new attachments (if any)
+    if (fileInput.files.length > 0) {
+      const formData = new FormData();
+      for (let i = 0; i < fileInput.files.length; i++) {
+        formData.append('attachments', fileInput.files[i]);
+      }
+
+      const attachResp = await fetch(`/upload_attachment/${ticketId}`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!attachResp.ok) {
+        const attachResult = await safeJson(attachResp);
+        alert('Attachment upload failed: ' + (attachResult?.message || attachResp.statusText));
+        return;
+      }
+    }
+
+    // 3) Final UI refresh
+    loadTickets();
+    document.getElementById('ticketDetailModal').classList.add('hidden');
+    fileInput.value = ''; // clear the input
+  } catch (err) {
+    alert('Network error: ' + err.message);
+  }
+});

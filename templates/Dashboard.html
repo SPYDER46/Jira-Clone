@@ -7,226 +7,123 @@
 </head>
 <body class="un-body">
 
-<div class="un-navbar">
-  <h1 class="un-navbar__title">U N I T Y</h1>
+  <!-- Navbar -->
+  <div class="un-navbar">
+    <h1 class="un-navbar__title">U N I T Y</h1>
 
     <div class="un-navbar__search">
-    <input
-      type="text"
-      id="searchInput"
-      placeholder="Search..."
-      autocomplete="off"
-    />
-    <button class="un-btn" id="openModalBtn">Create Ticket</button>
-    <button id="clearSearchBtn" class="un-btn" title="Clear Search">Clear</button>
+      <input type="text" id="searchInput" placeholder="Search..." autocomplete="off" />
+      <button class="un-btn" id="openModalBtn">Create Ticket</button>
+      <button id="clearSearchBtn" class="un-btn" title="Clear Search">Clear</button>
     </div>
 
-  <div class="un-navbar__actions">
-    <select id="filterType" class="un-filter-select">
-      <option value="">All Types</option>
-      <option value="Task">Task</option>
-      <option value="Bug">Bug</option>
-    </select>
+    <div class="un-navbar__actions">
+      <select id="filterType" class="un-filter-select">
+        <option value="">All Types</option>
+        <option value="Task">Task</option>
+        <option value="Bug">Bug</option>
+      </select>
 
-    <select id="filterGame" class="un-filter-select">
-      <option value="">All Games</option>
-      <option value="Game1">Aviator</option>
-      <option value="Game2">CricketX</option>
-      <option value="Game3">Hilo</option>
-      <!-- You can dynamically populate this later -->
-    </select>
+      <select id="filterGame" class="un-filter-select">
+        <option value="">All Games</option>
+        <option value="Game1">Aviator</option>
+        <option value="Game2">CricketX</option>
+        <option value="Game3">Hilo</option>
+      </select>
 
-    <!-- Invite User Button -->
-<button id="inviteBtn" class="un-btn un-btn--primary">Invite User</button>
-
-<!-- Invite User Modal -->
-<div id="inviteModal" class="un-modal">
-  <div class="un-modal__content">
-    <h3 class="un-modal__title">Invite User</h3>
-    <form id="inviteForm" class="un-form">
-      <div class="un-form-group">
-        <label for="inviteName">Name</label>
-        <input type="text" id="inviteName" placeholder="Full Name" required />
-      </div>
-      <div class="un-form-group">
-        <label for="inviteRole">Role</label>
-        <input type="text" id="inviteRole" placeholder="e.g. Developer, QA" required />
-      </div>
-      <div class="un-form-group">
-        <label for="inviteEmail">Email</label>
-        <input type="email" id="inviteEmail" placeholder="email@example.com" required />
-      </div>
-      <div class="un-form-actions">
-        <button type="submit" class="un-btn un-btn--primary">Send Invite</button>
-        <button type="button" class="un-btn" id="inviteCancelBtn">Cancel</button>
-      </div>
-    </form>
+      <button id="inviteBtn" class="un-btn un-btn--primary">Invite User</button>
+    </div>
   </div>
-</div>
 
-  </div>
-</div>
-
+  <!-- Ticket Board Columns -->
   <div class="un-board">
-    <div class="un-column" id="To Do">
+    <div class="un-column" id="todo">
       <h2 class="un-column__header">To Do</h2>
     </div>
-    <div class="un-column" id="In Process">
+    <div class="un-column" id="inprocess">
       <h2 class="un-column__header">In Process</h2>
     </div>
-    <div class="un-column" id="In Review">
+    <div class="un-column" id="inreview">
       <h2 class="un-column__header">In Review</h2>
     </div>
-    <div class="un-column" id="Done">
+    <div class="un-column" id="done">
       <h2 class="un-column__header">Done</h2>
     </div>
-    <div class="un-column" id="On-Hold">
+    <div class="un-column" id="onhold">
       <h2 class="un-column__header">On-Hold</h2>
     </div>
-    <div class="un-column" id="Suggestion">
+    <div class="un-column" id="suggestion">
       <h2 class="un-column__header">Suggestion</h2>
     </div>
   </div>
 
-  <!-- Modal -->
+  <!-- Create Ticket Modal -->
   <div id="ticketModal" class="un-modal">
     <div class="un-modal__content">
       <h3 class="un-modal__title">Create Ticket</h3>
       <form id="ticketForm" class="un-form" method="POST" action="/submit_ticket" enctype="multipart/form-data">
-  <div class="un-form-group">
-    <label for="project">Project</label>
-    <input type="text" id="project" name="project" placeholder="Project" required />
-  </div>
-  <div class="un-form-group">
-    <label for="workType">Work Type</label>
-    <select id="workType" name="workType">
-      <option>Task</option>
-      <option>Bug</option>
-    </select>
-  </div>
-  <div class="un-form-group">
-    <label for="status">Status</label>
-    <select id="status" name="status">
-      <option>To Do</option>
-      <option>In Process</option>
-      <option>In Review</option>
-      <option>Done</option>
-      <option>On-Hold</option>
-      <option>Suggestion</option>
-    </select>
-  </div>
-
-  <div class="un-form-group">
-  <label for="summary">Summary</label>
-  <input type="text" id="summary" name="summary" placeholder="Summary" required />
-</div>
-  
-  <div class="un-form-group">
-    <label for="description">Description</label>
-    <textarea id="description" name="description" placeholder="Description" required></textarea>
-  </div>
-
-  <div class="un-form-group">
-    <label for="assignee">Assignee</label>
-    <input type="text" id="assignee" name="assignee" placeholder="Assignee" />
-  </div>
-
-  <div class="un-form-group">
-    <label for="team">Team</label>
-    <input type="text" id="team" name="team" placeholder="Team" />
-  </div>
-
-  <div class="un-form-group">
-    <label for="gameName">Game Name</label>
-    <input type="text" id="gameName" name="gameName" placeholder="Game Name" />
-  </div>
-
-  <div class="un-form-group">
-    <label for="attachment">Attachment</label>
-    <input type="file" id="attachment" name="attachment" />
-  </div>
-
-  <div class="un-form-actions">
-    <button type="submit" class="un-btn un-btn--primary">Create</button>
-    <button type="button" class="un-btn" id="cancelBtn">Cancel</button>
-  </div>
-</form>
-
-    </div>
-  </div>
-
-<!-- Ticket Detail Modal -->
-<div id="ticketDetailModal" class="ticket-detail-modal hidden">
-  <div class="ticket-detail-modal__content">
-    <div class="ticket-detail-modal__header">
-      <h3 class="ticket-detail-modal__title">Ticket Details</h3>
-      <button id="closeDetailBtn" class="ticket-detail-modal__close-btn">✖</button>
-    </div>
-
-    <div class="ticket-detail-modal__field">
-      <label for="detailSummary">Summary:</label>
-      <input type="text" id="detailSummary" />
-    </div>
-
-    <div class="ticket-detail-modal__field">
-      <label for="detailProject">Project:</label>
-      <input type="text" id="detailProject" />
-    </div>
-
-    <div class="ticket-detail-modal__field">
-      <label for="detailType">Type:</label>
-      <select id="detailType">
-        <option>Task</option>
-        <option>Bug</option>
-      </select>
-    </div>
-
-    <div class="ticket-detail-modal__field">
-      <label for="detailStatus">Status:</label>
-      <select id="detailStatus">
-        <option>To Do</option>
-        <option>In Process</option>
-        <option>In Review</option>
-        <option>Done</option>
-        <option>On-Hold</option>
-        <option>Suggestion</option>
-      </select>
-    </div>
-
-    <div class="ticket-detail-modal__field" style="align-items: flex-start;">
-      <label for="detailDescription">Description:</label>
-      <textarea id="detailDescription" rows="5"></textarea>
-    </div>
-
-    <div class="ticket-detail-modal__field">
-      <label for="detailAssignee">Assignee:</label>
-      <input type="text" id="detailAssignee" />
-    </div>
-
-    <div class="ticket-detail-modal__field">
-      <label for="detailTeam">Team:</label>
-      <input type="text" id="detailTeam" />
-    </div>
-
-    <div class="ticket-detail-modal__field">
-      <label for="detailGame">Game Name:</label>
-      <input type="text" id="detailGame" />
-    </div>
-
-    <div class="ticket-detail-modal__field" style="align-items: flex-start;">
-        <label>Attachments:</label>
-        <div id="detailAttachmentsList" style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
-            <!-- Existing attachments will be injected here -->
+        <div class="un-form-group"><label for="project">Project</label><input type="text" id="project" name="project" required /></div>
+        <div class="un-form-group"><label for="workType">Work Type</label><select id="workType" name="workType"><option>Task</option><option>Bug</option></select></div>
+        <div class="un-form-group"><label for="status">Status</label><select id="status" name="status"><option>To Do</option><option>In Process</option><option>In Review</option><option>Done</option><option>On-Hold</option><option>Suggestion</option></select></div>
+        <div class="un-form-group"><label for="summary">Summary</label><input type="text" id="summary" name="summary" required /></div>
+        <div class="un-form-group"><label for="description">Description</label><textarea id="description" name="description" required></textarea></div>
+        <div class="un-form-group"><label for="assignee">Assignee</label><input type="text" id="assignee" name="assignee" /></div>
+        <div class="un-form-group"><label for="team">Team</label><input type="text" id="team" name="team" /></div>
+        <div class="un-form-group"><label for="gameName">Game Name</label><input type="text" id="gameName" name="gameName" /></div>
+        <div class="un-form-group"><label for="attachment">Attachment</label><input type="file" id="attachment" name="attachment" /></div>
+        <div class="un-form-actions">
+          <button type="submit" class="un-btn un-btn--primary">Create</button>
+          <button type="button" class="un-btn" id="cancelBtn">Cancel</button>
         </div>
-
-        <input type="file" id="newAttachmentInput" multiple />
-   </div>
-
-    <div class="ticket-detail-modal__actions">
-      <button id="saveTicketBtn" class="un-btn un-btn--primary">Save</button>
+      </form>
     </div>
   </div>
-</div>
+
+  <!-- Invite User Modal -->
+  <div id="inviteModal" class="un-modal">
+    <div class="un-modal__content">
+      <h3 class="un-modal__title">Invite User</h3>
+      <form id="inviteForm" class="un-form">
+        <div class="un-form-group"><label for="inviteName">Name</label><input type="text" id="inviteName" required /></div>
+        <div class="un-form-group"><label for="inviteRole">Role</label><input type="text" id="inviteRole" required /></div>
+        <div class="un-form-group"><label for="inviteEmail">Email</label><input type="email" id="inviteEmail" required /></div>
+        <div class="un-form-actions">
+          <button type="submit" class="un-btn un-btn--primary">Send Invite</button>
+          <button type="button" class="un-btn" id="inviteCancelBtn">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Ticket Detail Modal -->
+  <div id="ticketDetailModal" class="ticket-detail-modal hidden">
+    <div class="ticket-detail-modal__content">
+      <div class="ticket-detail-modal__header">
+        <h3 class="ticket-detail-modal__title">Ticket Details</h3>
+        <button id="closeDetailBtn" class="ticket-detail-modal__close-btn">✖</button>
+      </div>
+
+      <div class="ticket-detail-modal__field"><label for="detailSummary">Summary:</label><input type="text" id="detailSummary" /></div>
+      <div class="ticket-detail-modal__field"><label for="detailProject">Project:</label><input type="text" id="detailProject" /></div>
+      <div class="ticket-detail-modal__field"><label for="detailType">Type:</label><select id="detailType"><option>Task</option><option>Bug</option></select></div>
+      <div class="ticket-detail-modal__field"><label for="detailStatus">Status:</label><select id="detailStatus"><option>To Do</option><option>In Process</option><option>In Review</option><option>Done</option><option>On-Hold</option><option>Suggestion</option></select></div>
+      <div class="ticket-detail-modal__field"><label for="detailDescription">Description:</label><textarea id="detailDescription" rows="5"></textarea></div>
+      <div class="ticket-detail-modal__field"><label for="detailAssignee">Assignee:</label><input type="text" id="detailAssignee" /></div>
+      <div class="ticket-detail-modal__field"><label for="detailTeam">Team:</label><input type="text" id="detailTeam" /></div>
+      <div class="ticket-detail-modal__field"><label for="detailGame">Game Name:</label><input type="text" id="detailGame" /></div>
+
+      <!-- Attachment Section -->
+      <div class="ticket-detail-modal__field">
+        <label>Attachment:</label>
+        <div id="detailAttachmentsList">No attachment</div>
+        <input type="file" id="newAttachmentInput" />
+      </div>
+
+      <div class="ticket-detail-modal__actions">
+        <button id="saveTicketBtn" class="un-btn un-btn--primary">Save</button>
+      </div>
+    </div>
+  </div>
 
   <script src="../static/script.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>

@@ -414,16 +414,65 @@
   border-color: #d1d5db;
 }
 
-#detailAttachmentWrapper {
+#detailAttachmentsList {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
+  margin-top: 10px;
 }
 
-#detailAttachmentLink:hover {
+.attachment-item {
+  width: 110px;
+  text-align: center;
+  font-size: 12px;
+  color: #333;
+  word-wrap: break-word;
+}
+
+.attachment-item img {
+  width: 100px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  margin-bottom: 5px;
+}
+
+.attachment-item a {
+  display: block;
+  margin-top: 3px;
+  color: #007bff;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.attachment-item a:hover {
   text-decoration: underline;
 }
 
-#newAttachmentInput {
-  font-size: 14px;
+.remove-attachment-btn {
+  margin-left: 10px;
+  padding: 6px 10px;
+  background-color: #f87171;  /* softer red/pink */
+  color: white;
+  border: none;
+  border-radius: 12px;         /* more pill-shaped */
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 8px rgba(248, 113, 113, 0.4);
+  transition: 
+    background-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.2s ease;
 }
+
+.remove-attachment-btn:hover,
+.remove-attachment-btn:focus {
+  background-color: #ef4444;  /* a deeper red */
+  box-shadow: 0 6px 12px rgba(239, 68, 68, 0.6);
+  outline: none;
+  transform: scale(1.05);
+}
+
+
