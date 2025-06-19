@@ -24,13 +24,13 @@
         <option value="Bug">Bug</option>
       </select>
 
-      <select id="filterGame" class="un-filter-select">
+      <!-- <select id="filterGame" class="un-filter-select">
         <option value="">All Games</option>
         <option value="Game1">Aviator</option>
         <option value="Game2">CricketX</option>
         <option value="Game3">Hilo</option>
-      </select>
-
+      </select> -->
+      <button id="backToProjectBtn" class="un-btn">Back to Project</button>
       <button id="inviteBtn" class="un-btn un-btn--primary">Invite User</button>
     </div>
   </div>
@@ -69,7 +69,17 @@
         <div class="un-form-group"><label for="description">Description</label><textarea id="description" name="description" required></textarea></div>
         <div class="un-form-group"><label for="assignee">Assignee</label><input type="text" id="assignee" name="assignee" /></div>
         <div class="un-form-group"><label for="team">Team</label><input type="text" id="team" name="team" /></div>
-        <div class="un-form-group"><label for="gameName">Game Name</label><input type="text" id="gameName" name="gameName" /></div>
+        <div class="un-form-group">
+          <label for="gameName">Game Name</label>
+          <select id="filterGame" class="un-filter-select">
+            <option value="">All Games</option>
+            <option value="Game1">Aviator</option>
+            <option value="Game2">CricketX</option>
+            <option value="Game3">Hilo</option>
+          </select>
+          </select>
+
+        </div>
         <div class="un-form-group"><label for="attachment">Attachment</label><input type="file" id="attachment" name="attachment" /></div>
         <div class="un-form-actions">
           <button type="submit" class="un-btn un-btn--primary">Create</button>

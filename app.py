@@ -1,6 +1,6 @@
 import os
 import psycopg2
-from flask import Flask, request, jsonify, send_file, render_template
+from flask import Flask, request, jsonify, send_file, render_template, redirect, url_for
 from werkzeug.utils import secure_filename
 from io import BytesIO
 
@@ -23,7 +23,98 @@ def get_db_conn():
 
 @app.route('/')
 def index():
-    return render_template('Dashboard.html')
+    return render_template('projects.html')
+
+@app.route('/dashboard.html')
+def dashboard():
+    game_name = request.args.get('game_name')
+    phase = request.args.get('phase')
+    return render_template('dashboard.html', game_name=game_name, phase=phase)
+
+@app.route('/projects')
+def projects():
+    return render_template('projects.html')
+
+
+@app.route('/api/projects', methods=['GET'])
+def get_projects():
+    """
+    Get list of projects, optionally filtered by search or game_name.
+    """
+    search = request.args.get('search', '').strip()
+    game_filter = request.args.get('game_name', '').strip()
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    query = "SELECT id, game_name, phase, category FROM projects WHERE 1=1"
+    params = []
+
+    if search:
+        query += " AND LOWER(game_name) LIKE %s"
+        params.append(f"%{search.lower()}%")
+    if game_filter:
+        query += " AND game_name = %s"
+        params.append(game_filter)
+
+    cur.execute(query, tuple(params))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    projects = [{
+        "id": r[0],
+        "game_name": r[1],
+        "phase": r[2],
+        "categories": r[3]
+    } for r in rows]
+
+    return jsonify(projects)
+
+
+@app.route('/create_project', methods=['POST'])
+def create_project():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Missing JSON body'}), 400
+
+    game_name = data.get('game_name', '').strip()
+    phase = data.get('phase', '').strip()
+    categories = data.get('categories', '').strip()
+
+    if not game_name:
+        return jsonify({'error': 'Game name is required'}), 400
+
+    print(f"Creating project with: game_name={game_name}, phase={phase}, categories={categories}")
+
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO projects (game_name, phase, category) VALUES (%s, %s, %s)",
+            (game_name, phase, categories)
+        )
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'message': 'Project created successfully'})
+    except Exception as e:
+        print(f"Error creating project: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+
+@app.route('/get_game_names', methods=['GET'])
+def get_game_names():
+    conn = get_db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT DISTINCT game_name FROM tickets WHERE game_name IS NOT NULL AND game_name != ''")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify([row[0] for row in rows])
+
 
 @app.route('/submit_ticket', methods=['POST'])
 def submit_ticket():
@@ -63,18 +154,39 @@ def submit_ticket():
         conn.commit()
         cur.close()
         conn.close()
-        return jsonify({'message': 'Ticket created', 'ticket_id': ticket_id}), 201
+        return redirect(url_for('projects'))
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/get_tickets', methods=['GET'])
 def get_tickets():
+    work_type = request.args.get('workType')
+    game_name = request.args.get('gameName')
+    search = request.args.get('search')
+
     conn = get_db_conn()
     cur = conn.cursor()
 
-    # Main ticket query
-    cur.execute("SELECT id, summary, project, work_type, status, description, assignee, team, game_name FROM tickets")
+    query = """
+        SELECT id, summary, project, work_type, status, description, assignee, team, game_name
+        FROM tickets
+        WHERE 1=1
+    """
+    params = []
+
+    if work_type:
+        query += " AND work_type = %s"
+        params.append(work_type)
+
+    if game_name:
+        query += " AND game_name = %s"
+        params.append(game_name)
+
+    if search:
+        query += " AND (summary ILIKE %s OR description ILIKE %s)"
+        params.extend([f"%{search}%", f"%{search}%"])
+
+    cur.execute(query, params)
     tickets = cur.fetchall()
 
     ticket_list = []
@@ -102,6 +214,7 @@ def get_tickets():
     cur.close()
     conn.close()
     return jsonify(ticket_list)
+
 
 @app.route('/invite_user', methods=['POST'])
 def invite_user():

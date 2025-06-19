@@ -307,3 +307,133 @@ document.getElementById('saveTicketBtn').addEventListener('click', async () => {
     alert('Network error: ' + err.message);
   }
 });
+
+
+// Game Selection
+
+window.addEventListener('load', () => {
+  loadTickets();
+  loadGameNames();
+});
+
+// Game filter
+
+async function loadGameNames() {
+  try {
+    const response = await fetch('/get_game_names');
+    const games = await response.json();
+    const gameSelect = document.getElementById('gameName');
+
+    // Clear old options (except placeholder)
+    gameSelect.innerHTML = '<option value="">-- Select Game --</option>';
+
+    games.forEach(game => {
+      const opt = document.createElement('option');
+      opt.value = game;
+      opt.textContent = game;
+      gameSelect.appendChild(opt);
+    });
+  } catch (err) {
+    console.error('Failed to load game names:', err);
+  }
+}
+
+// Load on modal open or page load
+document.getElementById('openModalBtn').addEventListener('click', () => {
+  document.getElementById('ticketModal').style.display = 'block';
+  loadGameNames();
+
+  if (fixedGameName && gameNameInputCreate) {
+    gameNameInputCreate.value = fixedGameName;
+    gameNameInputCreate.disabled = true;
+  } else if (gameNameInputCreate) {
+    gameNameInputCreate.value = '';
+    gameNameInputCreate.disabled = false;
+  }
+});
+
+document.getElementById('backToProjectBtn').addEventListener('click', () => {
+ window.location.href = '/projects';
+});
+
+// Assume currentProject is set globally or passed somehow, e.g. from server or URL
+// Example: const currentProject = 'ProjectA';
+let currentProject = null;
+
+// On page load, get project from URL or a global variable injected from server
+window.addEventListener('load', () => {
+  // For example, get project from URL query param ?project=ProjectA
+  const urlParams = new URLSearchParams(window.location.search);
+  currentProject = urlParams.get('project') || null;
+  
+  if (!currentProject) {
+    alert('No project selected. Please select a project first.');
+    // Optionally redirect to projects list page:
+    // window.location.href = '/projects';
+    return;
+  }
+
+  loadTickets();
+  loadGameNames();
+});
+
+// Modify loadTickets to include current project filter
+async function loadTickets() {
+  if (!currentProject) return; // prevent loading if no project
+
+  const workType = document.getElementById('filterType').value;
+  const gameName = document.getElementById('filterGame').value;
+  const searchText = document.getElementById('searchInput').value.trim();
+
+  let url = `/get_tickets?project=${encodeURIComponent(currentProject)}&`;  // Add project filter here
+
+  if (workType) url += `workType=${encodeURIComponent(workType)}&`;
+  if (gameName) url += `gameName=${encodeURIComponent(gameName)}&`;
+  if (searchText) url += `search=${encodeURIComponent(searchText)}&`;
+
+  // ... rest unchanged ...
+}
+
+// When opening the Create Ticket modal, prefill the project field with current project and disable it
+document.getElementById('openModalBtn').addEventListener('click', () => {
+  document.getElementById('ticketModal').style.display = 'block';
+  loadGameNames();
+
+  const projectInput = document.getElementById('projectInputCreate'); // Assume this is the input field id in modal
+
+  if (projectInput) {
+    projectInput.value = currentProject;
+    projectInput.disabled = true; // Prevent user changing project in create ticket modal
+  }
+});
+
+// On submit ticket form, ensure project is included
+document.getElementById('ticketForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const form = e.target;
+  const formData = new FormData(form);
+
+  // Ensure project is set in formData (in case input disabled fields are skipped)
+  formData.set('project', currentProject);
+
+  try {
+    const response = await fetch('/submit_ticket', {
+      method: 'POST',
+      body: formData
+    });
+
+    // ... rest unchanged ...
+  } catch (err) {
+    alert('Network error: ' + err.message);
+  }
+});
+
+// When loading ticket details, make sure project is shown correctly (no changes needed here unless you want to enforce project)
+function showTicketDetails(ticket) {
+  // ... existing code ...
+
+  document.getElementById('detailProject').value = ticket.project || '';
+
+  // ... rest unchanged ...
+}
