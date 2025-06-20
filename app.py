@@ -91,9 +91,9 @@ def create_project():
         conn = get_db_conn()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO projects (game_name, phase, category) VALUES (%s, %s, %s)",
-            (game_name, phase, categories)
-        )
+        "INSERT INTO projects (game_name, phase, category) VALUES (%s, %s, %s)",
+        (game_name, phase, categories)
+    )
 
         conn.commit()
         cur.close()
