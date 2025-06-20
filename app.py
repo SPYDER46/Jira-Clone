@@ -35,128 +35,23 @@ def dashboard():
 def projects():
     return render_template('projects.html')
 
-
-@app.route('/api/projects', methods=['GET'])
-def get_projects():
-    """
-    Get list of projects, optionally filtered by search or game_name.
-    """
-    search = request.args.get('search', '').strip()
-    game_filter = request.args.get('game_name', '').strip()
+@app.route('/api/get_game_by_project')
+def get_game_by_project():
+    project = request.args.get('project')
+    if not project:
+        return jsonify({'game_name': ''}), 400
 
     conn = get_db_conn()
     cur = conn.cursor()
-
-    query = "SELECT id, game_name, phase, category FROM projects WHERE 1=1"
-    params = []
-
-    if search:
-        query += " AND LOWER(game_name) LIKE %s"
-        params.append(f"%{search.lower()}%")
-    if game_filter:
-        query += " AND game_name = %s"
-        params.append(game_filter)
-
-    cur.execute(query, tuple(params))
-    rows = cur.fetchall()
+    cur.execute("SELECT game_name FROM projects WHERE game_name = %s", (project,))
+    row = cur.fetchone()
     cur.close()
     conn.close()
 
-    projects = [{
-        "id": r[0],
-        "game_name": r[1],
-        "phase": r[2],
-        "categories": r[3]
-    } for r in rows]
+    if row:
+        return jsonify({'game_name': row[0]})
+    return jsonify({'game_name': ''})
 
-    return jsonify(projects)
-
-
-@app.route('/create_project', methods=['POST'])
-def create_project():
-    data = request.get_json()
-    if not data:
-        return jsonify({'error': 'Missing JSON body'}), 400
-
-    game_name = data.get('game_name', '').strip()
-    phase = data.get('phase', '').strip()
-    categories = data.get('categories', '').strip()
-
-    if not game_name:
-        return jsonify({'error': 'Game name is required'}), 400
-
-    print(f"Creating project with: game_name={game_name}, phase={phase}, categories={categories}")
-
-    try:
-        conn = get_db_conn()
-        cur = conn.cursor()
-        cur.execute(
-        "INSERT INTO projects (game_name, phase, category) VALUES (%s, %s, %s)",
-        (game_name, phase, categories)
-    )
-
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({'message': 'Project created successfully'})
-    except Exception as e:
-        print(f"Error creating project: {e}")
-        return jsonify({'error': str(e)}), 500
-
-
-
-@app.route('/get_game_names', methods=['GET'])
-def get_game_names():
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT DISTINCT game_name FROM tickets WHERE game_name IS NOT NULL AND game_name != ''")
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return jsonify([row[0] for row in rows])
-
-
-@app.route('/submit_ticket', methods=['POST'])
-def submit_ticket():
-    data = request.form
-    project = data.get('project')
-    work_type = data.get('workType')
-    status = data.get('status')
-    summary = data.get('summary')
-    description = data.get('description')
-    assignee = data.get('assignee')
-    team = data.get('team')
-    game_name = data.get('gameName')
-
-    try:
-        conn = get_db_conn()
-        cur = conn.cursor()
-
-        # Insert ticket without attachment
-        cur.execute(
-            """
-            INSERT INTO tickets 
-            (project, work_type, status, summary, description, assignee, team, game_name)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-        """, (project, work_type, status, summary, description, assignee, team, game_name))
-        ticket_id = cur.fetchone()[0]
-
-        files = request.files.getlist('attachment')  
-        for file in files:
-            if file and file.filename:
-                filename = secure_filename(file.filename)
-                data = file.read()
-                cur.execute(
-                    "INSERT INTO ticket_attachments (ticket_id, filename, data) VALUES (%s, %s, %s)",
-                    (ticket_id, filename, data)
-                )
-
-        conn.commit()
-        cur.close()
-        conn.close()
-        return redirect(url_for('projects'))
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 @app.route('/get_tickets', methods=['GET'])
 def get_tickets():
@@ -215,6 +110,179 @@ def get_tickets():
     conn.close()
     return jsonify(ticket_list)
 
+# @app.route('/get_tickets')
+# def get_tickets():
+#     """
+#     Get list of tickets, filtered by optional workType, gameName, or search.
+#     """
+#     work_type = request.args.get('workType', '').strip()
+#     game_name = request.args.get('gameName', '').strip()
+#     search = request.args.get('search', '').strip()
+
+#     conn = get_db_conn()
+#     cur = conn.cursor()
+
+#     query = """
+#         SELECT id, summary, status, work_type, description, assignee, team, game_name
+#         FROM tickets
+#         WHERE 1=1
+#     """
+#     params = []
+
+#     if work_type:
+#         query += " AND work_type = %s"
+#         params.append(work_type)
+
+#     if game_name:
+#         query += " AND game_name = %s"
+#         params.append(game_name)  
+
+#     if search:
+#         query += " AND LOWER(summary) LIKE %s"
+#         params.append(f"%{search.lower()}%")
+
+#     query += " ORDER BY id DESC"
+
+#     cur.execute(query, tuple(params))
+#     rows = cur.fetchall()
+#     cur.close()
+#     conn.close()
+
+#     tickets = []
+#     for r in rows:
+#         tickets.append({
+#             "id": r[0],
+#             "summary": r[1],
+#             "status": r[2],
+#             "work_type": r[3],
+#             "description": r[4],
+#             "assignee": r[5],
+#             "team": r[6],
+#             "game_name": r[7],
+#             "attachments": []  # add this if you're enriching tickets later
+#         })
+
+#     return jsonify(tickets)
+
+@app.route('/api/projects', methods=['GET'])
+def get_projects():
+    """
+    Get list of projects, optionally filtered by search or game_name.
+    """
+    search = request.args.get('search', '').strip()
+    game_filter = request.args.get('game_name', '').strip()
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    query = "SELECT id, game_name, phase, category FROM projects WHERE 1=1"
+    params = []
+
+    if search:
+        query += " AND LOWER(game_name) LIKE %s"
+        params.append(f"%{search.lower()}%")
+    if game_filter:
+        query += " AND game_name = %s"
+        params.append(game_filter)
+
+    cur.execute(query, tuple(params))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    projects = [{
+        "id": r[0],
+        "game_name": r[1],
+        "phase": r[2],
+        "categories": r[3]
+    } for r in rows]
+
+    return jsonify(projects)
+
+@app.route('/create_project', methods=['POST'])
+def create_project():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Missing JSON body'}), 400
+
+    game_name = data.get('game_name', '').strip()
+    phase = data.get('phase', '').strip()
+    categories = data.get('categories', '').strip()
+
+    if not game_name:
+        return jsonify({'error': 'Game name is required'}), 400
+
+    print(f"Creating project with: game_name={game_name}, phase={phase}, categories={categories}")
+
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute(
+        "INSERT INTO projects (game_name, phase, category) VALUES (%s, %s, %s)",
+        (game_name, phase, categories)
+    )
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'message': 'Project created successfully'})
+    except Exception as e:
+        print(f"Error creating project: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/get_game_names', methods=['GET'])
+def get_game_names():
+    conn = get_db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT DISTINCT game_name FROM tickets WHERE game_name IS NOT NULL AND game_name != ''")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify([row[0] for row in rows])
+
+
+@app.route('/submit_ticket', methods=['POST'])
+def submit_ticket():
+    data = request.form
+    project = data.get('project')
+    work_type = data.get('workType')
+    status = data.get('status')
+    summary = data.get('summary')
+    description = data.get('description')
+    assignee = data.get('assignee')
+    team = data.get('team')
+    game_name = data.get('gameName')
+
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+
+        # Insert ticket without attachment
+        cur.execute(
+            """
+            INSERT INTO tickets 
+            (project, work_type, status, summary, description, assignee, team, game_name)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+        """, (project, work_type, status, summary, description, assignee, team, game_name))
+        ticket_id = cur.fetchone()[0]
+
+        files = request.files.getlist('attachment')  
+        for file in files:
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                data = file.read()
+                cur.execute(
+                    "INSERT INTO ticket_attachments (ticket_id, filename, data) VALUES (%s, %s, %s)",
+                    (ticket_id, filename, data)
+                )
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'ticket_id': ticket_id}), 201
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/invite_user', methods=['POST'])
 def invite_user():
