@@ -223,55 +223,48 @@
 
   // Load projects from backend with filters
   function loadProjects() {
-    let url = 'api/projects?';
+  fetch('api/projects')
+    .then(res => res.json())
+    .then(data => {
+      const searchVal = searchInput.value.trim().toLowerCase();
+      const phaseVal = phaseFilter.value;
 
-    const searchVal = searchInput.value.trim();
-    const phaseVal = phaseFilter.value;
+      // Client-side filtering
+      const filteredData = data.filter(p => {
+        const matchesSearch = p.game_name.toLowerCase().includes(searchVal);
+        const matchesPhase = phaseVal ? p.phase === phaseVal : true;
+        return matchesSearch && matchesPhase;
+      });
 
-    if (searchVal) {
-      url += 'search=' + encodeURIComponent(searchVal) + '&';
-    }
-    if (phaseVal) {
-      // Assuming backend filter param is 'phase' (update backend if needed)
-      url += 'phase=' + encodeURIComponent(phaseVal) + '&';
-    }
-
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        projectsTableBody.innerHTML = '';
-        if (data.length === 0) {
-          projectsTableBody.innerHTML = '<tr><td colspan="3">No projects found</td></tr>';
-          return;
-        }
-        data.forEach(p => {
+      projectsTableBody.innerHTML = '';
+      if (filteredData.length === 0) {
+        projectsTableBody.innerHTML = '<tr><td colspan="3">No projects found</td></tr>';
+        return;
+      }
+      filteredData.forEach(p => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${p.game_name}</td>
-            <td>${p.phase}</td>
-            <td>${p.categories}</td>
+          <td>${p.game_name}</td>
+          <td>${p.phase}</td>
+          <td>${p.categories}</td>
         `;
-        // Add a cursor pointer style so user knows it's clickable
         tr.style.cursor = 'pointer';
 
-        // When user clicks the row, navigate to dashboard.html with project info in query string
         tr.addEventListener('click', () => {
-            // Pass game_name as query parameter (you can pass other data similarly)
-            const params = new URLSearchParams();
-            params.set('game_name', p.game_name);
-            params.set('phase', p.phase); // optional if needed
-            // Navigate
-            window.location.href = 'dashboard.html?' + params.toString();
+          const params = new URLSearchParams();
+          params.set('game_name', p.game_name);
+          params.set('phase', p.phase);
+          window.location.href = 'dashboard.html?' + params.toString();
         });
 
         projectsTableBody.appendChild(tr);
-        });
-
-      })
-      .catch(err => {
-        console.error('Failed to fetch projects', err);
       });
-  }
+    })
+    .catch(err => {
+      console.error('Failed to fetch projects', err);
+    });
+}
+
 
   // Show popup
   createBtn.onclick = () => {

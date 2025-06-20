@@ -322,6 +322,30 @@ document.getElementById('openModalBtn').addEventListener('click', () => {
     window.location.href = '/projects';
   });
 
+const ticketDetailModal = document.getElementById('ticketDetailModal');
+const closeDetailBtn = document.getElementById('closeDetailBtn');
+
+closeDetailBtn.addEventListener('click', () => {
+  ticketDetailModal.classList.add('hidden');
+});
+
+const ticketModal = document.getElementById('ticketModal');
+const cancelTicketBtn = document.getElementById('cancelTicketBtn');
+
+cancelTicketBtn.addEventListener('click', () => {
+  ticketModal.style.display = 'none';  // Or use a class toggle if you prefer
+});
+
+// invite user
+
+const inviteModal = document.getElementById('inviteModal');
+const inviteCancelBtn = document.getElementById('inviteCancelBtn');
+
+inviteCancelBtn.addEventListener('click', () => {
+  inviteModal.style.display = 'none';  // Or toggle a class like 'hidden'
+});
+
+
 window.addEventListener('load', () => {
   loadTickets();
   loadGameNames();
