@@ -24,9 +24,37 @@
         <option value="Bug">Bug</option>
       </select>
       <button id="backToProjectBtn" class="un-btn">Back to Project</button>
-      <button id="inviteBtn" class="un-btn un-btn--primary">Invite User</button>
+      <!-- Invite User Button (outside the modal) -->
+          <button id="openInviteBtn" class="un-btn">Invite User</button>
+
+          <!-- Invite User Modal -->
+          <div id="inviteModal" class="invite-user">
+            <div class="invite-user__content">
+              <h3 class="invite-user__title">Invite User</h3>
+              <form id="inviteForm" class="un-form">
+                <div class="invite-user-group">
+                  <label for="inviteName">Name</label>
+                  <input type="text" id="inviteName" required />
+                </div>
+                <div class="invite-user-group">
+                  <label for="inviteRole">Role</label>
+                  <input type="text" id="inviteRole" required />
+                </div>
+                <div class="invite-user-group">
+                  <label for="inviteEmail">Email</label>
+                  <input type="email" id="inviteEmail" required />
+                </div>
+                <div class="invite-user-actions">
+                  <button type="submit" class="un-btn un-btn--primary">Send Invite</button>
+                  <button type="button" class="invite-cancel" id="inviteCancelBtn">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
     </div>
   </div>
+
+
 
   <!-- Ticket Board Columns -->
   <div class="un-board">
@@ -51,41 +79,25 @@
   </div>
 
   <!-- Create Ticket Modal -->
-  <div id="ticketModal" class="un-modal">
-    <div class="un-modal__content">
-      <h3 class="un-modal__title">Create Ticket</h3>
+  <div id="ticketModal" class="Create-ticket" >
+    <div class="Create-ticket__content">
+      <h3 class="Create-ticket__title">Create Ticket</h3>
       <form id="ticketForm" class="un-form" method="POST" action="/submit_ticket" enctype="multipart/form-data">
-        <div class="un-form-group"><label for="project">Project</label><input type="text" id="project" name="project" required /></div>
-        <div class="un-form-group"><label for="workType">Work Type</label><select id="workType" name="workType"><option>Task</option><option>Bug</option></select></div>
-        <div class="un-form-group"><label for="status">Status</label><select id="status" name="status"><option>To Do</option><option>In Process</option><option>In Review</option><option>Done</option><option>On-Hold</option><option>Suggestion</option></select></div>
-        <div class="un-form-group"><label for="summary">Summary</label><input type="text" id="summary" name="summary" required /></div>
-        <div class="un-form-group"><label for="description">Description</label><textarea id="description" name="description" required></textarea></div>
-        <div class="un-form-group"><label for="assignee">Assignee</label><input type="text" id="assignee" name="assignee" /></div>
-        <div class="un-form-group"><label for="team">Team</label><input type="text" id="team" name="team" /></div>
-          <div class="un-form-group">
+        <div class="Create-ticket-group"><label for="project">Project</label><input type="text" id="project" name="project" required /></div>
+        <div class="Create-ticket-group"><label for="workType">Work Type</label><select id="workType" name="workType"><option>Task</option><option>Bug</option></select></div>
+        <div class="Create-ticket-group"><label for="status">Status</label><select id="status" name="status"><option>To Do</option><option>In Process</option><option>In Review</option><option>Done</option><option>On-Hold</option><option>Suggestion</option></select></div>
+        <div class="Create-ticket-group"><label for="summary">Summary</label><input type="text" id="summary" name="summary" required /></div>
+        <div class="Create-ticket-group"><label for="description">Description</label><textarea id="description" name="description" required></textarea></div>
+        <div class="Create-ticket-group"><label for="assignee">Assignee</label><input type="text" id="assignee" name="assignee" /></div>
+        <div class="Create-ticket-group"><label for="team">Team</label><input type="text" id="team" name="team" /></div>
+          <div class="Create-ticket-group">
             <label for="ticketGameName">Game Name</label>
             <input type="text" id="ticketGameName" name="gameName" readonly />
           </div>
-        <div class="un-form-group"><label for="attachment">Attachment</label><input type="file" id="attachment" name="attachment" /></div>
-        <div class="un-form-actions">
+        <div class="Create-ticket-group"><label for="attachment">Attachment</label><input type="file" id="attachment" name="attachment" /></div>
+        <div class="Create-ticketactions">
           <button type="submit" class="un-btn un-btn--primary">Create</button>
-          <button id="cancelTicketBtn" type="button">Cancel</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Invite User Modal -->
-  <div id="inviteModal" class="un-modal">
-    <div class="un-modal__content">
-      <h3 class="un-modal__title">Invite User</h3>
-      <form id="inviteForm" class="un-form">
-        <div class="un-form-group"><label for="inviteName">Name</label><input type="text" id="inviteName" required /></div>
-        <div class="un-form-group"><label for="inviteRole">Role</label><input type="text" id="inviteRole" required /></div>
-        <div class="un-form-group"><label for="inviteEmail">Email</label><input type="email" id="inviteEmail" required /></div>
-        <div class="un-form-actions">
-          <button type="submit" class="un-btn un-btn--primary">Send Invite</button>
-          <button type="button" class="un-btn" id="inviteCancelBtn">Cancel</button>
+          <button id="cancelTicketBtn" class="cancelTicketBtn">Cancel</button>
         </div>
       </form>
     </div>

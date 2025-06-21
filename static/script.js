@@ -11,7 +11,7 @@
   }
 
 document.getElementById('openModalBtn').addEventListener('click', () => {
-  document.getElementById('ticketModal').style.display = 'block';
+  document.getElementById('ticketModal').classList.add('Create-ticket--active'); 
   loadGameNames();
 
   const projectInput = document.getElementById('project');
@@ -332,17 +332,45 @@ closeDetailBtn.addEventListener('click', () => {
 const ticketModal = document.getElementById('ticketModal');
 const cancelTicketBtn = document.getElementById('cancelTicketBtn');
 
-cancelTicketBtn.addEventListener('click', () => {
-  ticketModal.style.display = 'none';  // Or use a class toggle if you prefer
+cancelTicketBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  ticketModal.classList.remove('Create-ticket--active');
 });
 
-// invite user
 
-const inviteModal = document.getElementById('inviteModal');
-const inviteCancelBtn = document.getElementById('inviteCancelBtn');
+// -------------- invite user
 
-inviteCancelBtn.addEventListener('click', () => {
-  inviteModal.style.display = 'none';  // Or toggle a class like 'hidden'
+document.addEventListener('DOMContentLoaded', () => {
+  const openInviteBtn = document.getElementById('openInviteBtn');
+  const inviteModal = document.getElementById('inviteModal');
+  const inviteCancelBtn = document.getElementById('inviteCancelBtn');
+
+  openInviteBtn.addEventListener('click', () => {
+    inviteModal.classList.add('active');
+  });
+
+  inviteCancelBtn.addEventListener('click', () => {
+    inviteModal.classList.remove('active');
+  });
+});
+
+
+
+// -------------- Create Ticket
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('ticketModal');
+  const openBtn = document.getElementById('openModalBtn');
+  const cancelBtn = document.getElementById('cancelTicketBtn');
+
+  openBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    modal.classList.add('Create-ticket--active');
+  });
+
+  cancelBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    modal.classList.remove('Create-ticket--active');
+  });
 });
 
 

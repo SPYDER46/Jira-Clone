@@ -14,12 +14,19 @@
       padding: 30px;
       background: #f5f7fa;
       color: #333;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     h1 {
       text-align: center;
       margin-bottom: 30px;
       color: #222;
+      width: 100%;
+      max-width: 900px;
     }
 
     .controls {
@@ -27,7 +34,9 @@
       flex-wrap: wrap;
       gap: 15px;
       justify-content: center;
-      margin-bottom: 25px;
+      margin-bottom: 30px;
+      width: 100%;
+      max-width: 900px;
     }
 
     input[type="text"], select {
@@ -35,7 +44,8 @@
       font-size: 16px;
       border: 1px solid #ccc;
       border-radius: 6px;
-      min-width: 200px;
+      min-width: 220px;
+      flex: 1 1 220px;
       transition: border-color 0.3s;
     }
     input[type="text"]:focus, select:focus {
@@ -54,6 +64,7 @@
       cursor: pointer;
       transition: background-color 0.3s;
       min-width: 140px;
+      flex-shrink: 0;
     }
     button:hover {
       background-color: #0056b3;
@@ -61,6 +72,7 @@
 
     table {
       width: 100%;
+      max-width: 900px;
       border-collapse: collapse;
       background: white;
       border-radius: 8px;
@@ -133,23 +145,51 @@
       margin-top: 25px;
       display: flex;
       justify-content: space-between;
+      gap: 10px;
     }
     #popup .btn-group button {
       flex: 1;
-      margin: 0 5px;
       min-width: auto;
+      padding: 10px;
+      font-size: 16px;
     }
     #popup .btn-group button:first-child {
       background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
     }
     #popup .btn-group button:first-child:hover {
       background-color: #1e7e34;
     }
     #popup .btn-group button:last-child {
       background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 6px;
     }
     #popup .btn-group button:last-child:hover {
       background-color: #a71d2a;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+      .controls {
+        flex-direction: column;
+        gap: 12px;
+        max-width: 100%;
+      }
+      input[type="text"], select, button {
+        min-width: 100%;
+        flex: none;
+      }
+      table, h1 {
+        max-width: 100%;
+      }
+      #popup {
+        width: 90%;
+        max-width: 350px;
+      }
     }
   </style>
 </head>
@@ -159,14 +199,14 @@
 
   <div class="controls">
     <input type="text" id="searchInput" placeholder="Search by game name" />
-    <select id="phaseFilter">
+    <select id="phaseFilter" aria-label="Filter projects by phase">
       <option value="">Filter by Phase</option>
       <option value="Phase 1">Phase 1</option>
       <option value="Phase 2">Phase 2</option>
       <option value="Phase 3">Phase 3</option>
       <option value="Phase 4">Phase 4</option>
     </select>
-    <button id="createBtn">Create Project</button>
+    <button id="createBtn" aria-haspopup="dialog" aria-controls="popupOverlay">Create Project</button>
   </div>
 
   <table id="projectsTable" aria-label="List of projects">
@@ -187,7 +227,7 @@
     <div id="popup">
       <h2 id="popupTitle">Create Project</h2>
       <label for="gameNameInput">Game Name:</label>
-      <input type="text" id="gameNameInput" />
+      <input type="text" id="gameNameInput" autocomplete="off" />
 
       <label for="phaseInput">Phase:</label>
       <select id="phaseInput">
@@ -199,7 +239,7 @@
       </select>
 
       <label for="categoriesInput">Categories:</label>
-      <input type="text" id="categoriesInput" />
+      <input type="text" id="categoriesInput" autocomplete="off" />
 
       <div class="btn-group">
         <button id="saveProjectBtn">Create</button>
@@ -223,48 +263,48 @@
 
   // Load projects from backend with filters
   function loadProjects() {
-  fetch('api/projects')
-    .then(res => res.json())
-    .then(data => {
-      const searchVal = searchInput.value.trim().toLowerCase();
-      const phaseVal = phaseFilter.value;
+    fetch('api/projects')
+      .then(res => res.json())
+      .then(data => {
+        const searchVal = searchInput.value.trim().toLowerCase();
+        const phaseVal = phaseFilter.value;
 
-      // Client-side filtering
-      const filteredData = data.filter(p => {
-        const matchesSearch = p.game_name.toLowerCase().includes(searchVal);
-        const matchesPhase = phaseVal ? p.phase === phaseVal : true;
-        return matchesSearch && matchesPhase;
-      });
-
-      projectsTableBody.innerHTML = '';
-      if (filteredData.length === 0) {
-        projectsTableBody.innerHTML = '<tr><td colspan="3">No projects found</td></tr>';
-        return;
-      }
-      filteredData.forEach(p => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${p.game_name}</td>
-          <td>${p.phase}</td>
-          <td>${p.categories}</td>
-        `;
-        tr.style.cursor = 'pointer';
-
-        tr.addEventListener('click', () => {
-          const params = new URLSearchParams();
-          params.set('game_name', p.game_name);
-          params.set('phase', p.phase);
-          window.location.href = 'dashboard.html?' + params.toString();
+        // Client-side filtering
+        const filteredData = data.filter(p => {
+          const matchesSearch = p.game_name.toLowerCase().includes(searchVal);
+          const matchesPhase = phaseVal ? p.phase === phaseVal : true;
+          return matchesSearch && matchesPhase;
         });
 
-        projectsTableBody.appendChild(tr);
-      });
-    })
-    .catch(err => {
-      console.error('Failed to fetch projects', err);
-    });
-}
+        projectsTableBody.innerHTML = '';
+        if (filteredData.length === 0) {
+          projectsTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center; font-style: italic;">No projects found</td></tr>';
+          return;
+        }
+        filteredData.forEach(p => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${p.game_name}</td>
+            <td>${p.phase}</td>
+            <td>${p.categories}</td>
+          `;
+          tr.style.cursor = 'pointer';
 
+          tr.addEventListener('click', () => {
+            const params = new URLSearchParams();
+            params.set('game_name', p.game_name);
+            params.set('phase', p.phase);
+            window.location.href = 'dashboard.html?' + params.toString();
+          });
+
+          projectsTableBody.appendChild(tr);
+        });
+      })
+      .catch(err => {
+        console.error('Failed to fetch projects', err);
+        projectsTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:red;">Failed to load projects</td></tr>';
+      });
+  }
 
   // Show popup
   createBtn.onclick = () => {
@@ -272,6 +312,7 @@
     phaseInput.value = '';
     categoriesInput.value = '';
     popupOverlay.style.display = 'flex';
+    gameNameInput.focus();
   };
 
   // Hide popup
@@ -287,6 +328,7 @@
 
     if (!gameName) {
       alert('Game Name is required');
+      gameNameInput.focus();
       return;
     }
 
