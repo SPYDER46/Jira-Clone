@@ -2,10 +2,14 @@ import os
 import psycopg2
 from flask import Flask, request, jsonify, send_file, render_template, redirect, url_for
 from werkzeug.utils import secure_filename
+from email.message import EmailMessage
 from io import BytesIO
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Flask, session
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # max 16MB upload
+app.secret_key = 'dev-secret-key-123'
 
 # DB connection info — replace with your credentials
 DB_HOST = 'localhost'
@@ -21,36 +25,248 @@ def get_db_conn():
         password=DB_PASS
     )
 
+def send_email(to_email, subject, html_content):
+    import smtplib
+    from email.message import EmailMessage
+
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = 'muthuvelraj2818@gmail.com'
+    msg['To'] = to_email
+    msg.set_content("This email requires an HTML-compatible viewer.")
+    msg.add_alternative(html_content, subtype='html')
+
+    with smtplib.SMTP('smtp.gmail.com', 587) as server:
+        server.starttls()
+        server.login('muthuvelraj2818@gmail.com', 'kxgh igwf elbh xibo')
+        server.send_message(msg)
+
 @app.route('/')
 def index():
-    return render_template('projects.html')
+    return redirect(url_for('register'))
 
 @app.route('/dashboard.html')
 def dashboard():
+    if 'user_id' not in session:
+        return redirect('/login')
     game_name = request.args.get('game_name')
     phase = request.args.get('phase')
     return render_template('dashboard.html', game_name=game_name, phase=phase)
 
-@app.route('/projects')
-def projects():
-    return render_template('projects.html')
+@app.route('/project')
+def project():
+    email = request.args.get('email')
+    # Optionally, use the email to fetch user or project info
+    # For now, just render a template
+    return render_template('projects.html', email=email)
 
-@app.route('/api/get_game_by_project')
-def get_game_by_project():
-    project = request.args.get('project')
-    if not project:
-        return jsonify({'game_name': ''}), 400
+@app.route('/accept_invite', methods=['GET'])
+def accept_invite_form():
+
+    return render_template('accept_invite.html')
+
+
+@app.route('/invite_user', methods=['POST'])
+def invite_user():
+    data = request.json
+    email = data.get('email', '').strip().lower()
+    print(f"Received invite request for: {email}")
 
     conn = get_db_conn()
     cur = conn.cursor()
-    cur.execute("SELECT game_name FROM projects WHERE game_name = %s", (project,))
-    row = cur.fetchone()
+
+    cur.execute("SELECT id FROM users WHERE LOWER(email) = %s", (email,))
+    existing = cur.fetchone()
+    print(f"Existing user check result: {existing}")
+
+    if existing:
+        return jsonify({'error': 'User already exists'}), 409
+
+    cur.execute("INSERT INTO users (email) VALUES (%s)", (email,))
+    conn.commit()
     cur.close()
     conn.close()
 
-    if row:
-        return jsonify({'game_name': row[0]})
-    return jsonify({'game_name': ''})
+    invite_link = f"http://localhost:5000/accept_invite?email={email}"
+    html_body = f"""
+    <html>
+    <body>
+        <p>You've been invited to join BUG FREE.</p>
+        <p>
+        <a href="{invite_link}" style="display:inline-block;padding:10px 15px;
+            background-color:#28a745;color:white;text-decoration:none;border-radius:4px;">
+            Accept Invite
+        </a>
+        </p>
+    </body>
+    </html>
+    """
+
+    send_email(email, "You're invited!", html_body)
+    return jsonify({'message': 'Invitation sent'})
+
+
+@app.route('/accept_invite', methods=['POST'])
+def accept_invite():
+    data = request.json
+    email = data.get('email')
+    name = data.get('name')
+
+    if not email or not name:
+        return jsonify({'error': 'Missing email or name'}), 400
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    cur.execute("UPDATE users SET name = %s, is_active = TRUE WHERE email = %s", (name, email))
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+    return jsonify({'message': 'Invitation accepted'})
+
+
+@app.route('/active_users', methods=['GET'])
+def active_users():
+    conn = get_db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name FROM users WHERE is_active = TRUE")
+    users = [{'id': r[0], 'name': r[1]} for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return jsonify(users)
+
+
+@app.route('/assign_user', methods=['POST'])
+def assign_user():
+    data = request.json
+    user_id = data.get('user_id')
+    project_name = data.get('project_name')
+
+    if not user_id or not project_name:
+        return jsonify({'error': 'Missing user_id or project_name'}), 400
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    # Get email and name of the user
+    cur.execute("SELECT email, name FROM users WHERE id = %s", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        return jsonify({'error': 'User not found'}), 404
+    email, name = row
+
+    # Assign user to the project
+    cur.execute("INSERT INTO project_assignments (user_id, project_name) VALUES (%s, %s)", (user_id, project_name))
+    conn.commit()
+
+    # Optional: Fetch project/game info to include in the email
+    cur.execute("SELECT phase, category FROM projects WHERE game_name = %s", (project_name,))
+    proj_info = cur.fetchone()
+    phase = proj_info[0] if proj_info else 'N/A'
+    category = proj_info[1] if proj_info else 'N/A'
+
+    cur.close()
+    conn.close()
+
+    # Build email content
+    html_body = f"""
+    <html>
+    <body>
+        <p>Hi {name},</p>
+        <p>You have been assigned to the project: <strong>{project_name}</strong>.</p>
+        <p><strong>Phase:</strong> {phase} <br>
+           <strong>Category:</strong> {category}</p>
+        <p>Please login to your BUG FREE application to view your tickets.</p>
+        <p>Thanks!</p>
+    </body>
+    </html>
+    """
+
+    send_email(email, "Project Assignment Notification", html_body)
+    return jsonify({'message': 'User assigned and notified'})
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'GET':
+        return render_template('register.html')
+
+    name = request.form.get('name')
+    email = request.form.get('email').strip().lower()
+    password = request.form.get('password')
+
+    if not name or not email or not password:
+        return "Missing fields", 400
+
+    hashed_pw = generate_password_hash(password)
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+    if cur.fetchone():
+        cur.close()
+        conn.close()
+        return "Email already registered", 409
+
+    cur.execute("INSERT INTO users (name, email, password, is_active) VALUES (%s, %s, %s, TRUE)", (name, email, hashed_pw))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    # Send welcome email
+    html_body = f"""
+    <html>
+    <body>
+        <p>Hi {name},</p>
+        <p>Welcome to <strong>BUG FREE</strong>! </p>
+        <p>Your account has been successfully created. You can now <a href="http://localhost:5000/login">login here</a>.</p>
+        <p>Happy bug tracking!<br>The BUG FREE Team</p>
+    </body>
+    </html>
+    """
+
+    try:
+        send_email(email, "Welcome to BUG FREE!", html_body)
+    except Exception as e:
+        print(f"Failed to send welcome email: {e}")
+
+    return redirect('/login')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'GET':
+        return render_template('login.html')
+
+    email = request.form.get('email').strip().lower()
+    password = request.form.get('password')
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name, password FROM users WHERE email = %s AND is_active = TRUE", (email,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if user and check_password_hash(user[2], password):
+        session['user_id'] = user[0]
+        session['user_name'] = user[1]
+        return redirect('/projects')
+    else:
+        return "Invalid credentials", 401
+    
+@app.route('/projects')
+def projects_alias():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('projects.html', email=session.get('user_email'))
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 
 @app.route('/get_tickets', methods=['GET'])
@@ -110,59 +326,131 @@ def get_tickets():
     conn.close()
     return jsonify(ticket_list)
 
-# @app.route('/get_tickets')
-# def get_tickets():
-#     """
-#     Get list of tickets, filtered by optional workType, gameName, or search.
-#     """
-#     work_type = request.args.get('workType', '').strip()
-#     game_name = request.args.get('gameName', '').strip()
-#     search = request.args.get('search', '').strip()
 
-#     conn = get_db_conn()
-#     cur = conn.cursor()
+@app.route('/update_ticket/<int:ticket_id>', methods=['POST'])
+def update_ticket(ticket_id):
+    if request.content_type.startswith('multipart/form-data'):
+        attachment = request.files.get('newAttachment')
+        if not attachment:
+            return jsonify({'error': 'No attachment file provided'}), 400
 
-#     query = """
-#         SELECT id, summary, status, work_type, description, assignee, team, game_name
-#         FROM tickets
-#         WHERE 1=1
-#     """
-#     params = []
+        filename = secure_filename(attachment.filename)
+        data = attachment.read()
 
-#     if work_type:
-#         query += " AND work_type = %s"
-#         params.append(work_type)
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO ticket_attachments (ticket_id, filename, data) VALUES (%s, %s, %s)",
+            (ticket_id, filename, data)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
 
-#     if game_name:
-#         query += " AND game_name = %s"
-#         params.append(game_name)  
+        return jsonify({'message': 'Attachment saved'}), 200
 
-#     if search:
-#         query += " AND LOWER(summary) LIKE %s"
-#         params.append(f"%{search.lower()}%")
+    # JSON update
+    data = request.json or {}
+    fields = ['summary','project','work_type','status','description','assignee','team','game_name']
 
-#     query += " ORDER BY id DESC"
+    conn = get_db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT assignee, status, summary FROM tickets WHERE id = %s", (ticket_id,))
+    old_ticket = cur.fetchone()
 
-#     cur.execute(query, tuple(params))
-#     rows = cur.fetchall()
-#     cur.close()
-#     conn.close()
+    if not old_ticket:
+        cur.close()
+        conn.close()
+        return jsonify({'error': 'Ticket not found'}), 404
 
-#     tickets = []
-#     for r in rows:
-#         tickets.append({
-#             "id": r[0],
-#             "summary": r[1],
-#             "status": r[2],
-#             "work_type": r[3],
-#             "description": r[4],
-#             "assignee": r[5],
-#             "team": r[6],
-#             "game_name": r[7],
-#             "attachments": []  # add this if you're enriching tickets later
-#         })
+    old_assignee, old_status, summary = old_ticket
 
-#     return jsonify(tickets)
+    updates, params = [], []
+    for f in fields:
+        if f in data:
+            updates.append(f"{f} = %s")
+            params.append(data[f])
+
+    if updates:
+        params.append(ticket_id)
+        cur.execute(f"UPDATE tickets SET {', '.join(updates)} WHERE id = %s", params)
+        conn.commit()
+
+    # Get updated status and assignee
+    new_status = data.get('status')
+    new_assignee = data.get('assignee')
+
+    should_notify = False
+
+    # If assignee or status changed, notify
+    if (new_assignee and str(new_assignee) != str(old_assignee)) or (new_status and new_status != old_status):
+        should_notify = True
+
+    if should_notify and new_assignee:
+        cur.execute("SELECT email, name FROM users WHERE id = %s", (new_assignee,))
+        user = cur.fetchone()
+        if user:
+            to_email, user_name = user
+
+            cur.execute("""
+                SELECT summary, description, project, status, work_type, game_name
+                FROM tickets WHERE id = %s
+            """, (ticket_id,))
+            ticket_details = cur.fetchone()
+
+            if ticket_details:
+                summary, description, project, status, work_type, game_name = ticket_details
+
+                html_content = f"""
+                <html>
+                <body>
+                    <p>Hello {user_name},</p>
+                    <p>This ticket has been updated:</p>
+                    <ul>
+                        <li><strong>Summary:</strong> {summary}</li>
+                        <li><strong>Description:</strong> {description}</li>
+                        <li><strong>Project:</strong> {project}</li>
+                        <li><strong>Status:</strong> {status}</li>
+                        <li><strong>Work Type:</strong> {work_type}</li>
+                        <li><strong>Game Name:</strong> {game_name}</li>
+                    </ul>
+                           </body>
+                </html>
+                """
+                try:
+                    send_email(to_email, f"Ticket Updated: {summary}", html_content)
+                    print(f"Email sent to {to_email}")
+                except Exception as e:
+                    print(f"Error sending update email: {e}")
+
+    cur.close()
+    conn.close()
+    return jsonify({'message': 'Ticket updated'})
+
+@app.route('/api/assignees')
+def get_project_assignees():
+    project = request.args.get('project')
+    if not project:
+        return jsonify([])
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    query = '''
+        SELECT users.id, users.name
+        FROM users
+        JOIN project_invitations ON users.id = project_invitations.user_id
+        WHERE project_invitations.status = 'accepted'
+        AND project_invitations.project_name = %s
+    '''
+    cur.execute(query, (project,))
+    rows = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return jsonify([{'id': row[0], 'name': row[1]} for row in rows])
+
 
 @app.route('/api/projects', methods=['GET'])
 def get_projects():
@@ -284,34 +572,6 @@ def submit_ticket():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/invite_user', methods=['POST'])
-def invite_user():
-    data = request.json
-    name = data.get('name')
-    role = data.get('role')
-    email = data.get('email')
-
-    if not all([name, role, email]):
-        return jsonify({'error': 'Missing fields'}), 400
-
-    try:
-        conn = get_db_conn()
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO invites (name, role, email) VALUES (%s, %s, %s) RETURNING id",
-            (name, role, email)
-        )
-        invite_id = cur.fetchone()[0]
-        conn.commit()
-        cur.close()
-        conn.close()
-        # You can add email sending logic here if needed
-        return jsonify({'message': 'User invited', 'invite_id': invite_id}), 201
-    except psycopg2.errors.UniqueViolation:
-        return jsonify({'error': 'Email already invited'}), 400
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 @app.route('/ticket_attachment/<int:ticket_id>', methods=['GET'])
 def ticket_attachment(ticket_id):
     try:
@@ -384,48 +644,6 @@ def get_attachment(attachment_id):
         )
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-
-@app.route('/update_ticket/<int:ticket_id>', methods=['POST'])
-def update_ticket(ticket_id):
-    if request.content_type.startswith('multipart/form-data'):
-        attachment = request.files.get('newAttachment')
-        if not attachment:
-            return jsonify({'error': 'No attachment file provided'}), 400
-
-        filename = secure_filename(attachment.filename)
-        data = attachment.read()
-
-        conn = get_db_conn()
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO ticket_attachments (ticket_id, filename, data) VALUES (%s, %s, %s)",
-            (ticket_id, filename, data)
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-
-        return jsonify({'message': 'Attachment saved'}), 200
-
-    # Otherwise, it's a normal JSON update
-    data = request.json or {}
-    fields = ['summary','project','work_type','status','description','assignee','team','game_name']
-    updates, params = [], []
-    for f in fields:
-        if f in data:
-            updates.append(f"{f} = %s")
-            params.append(data[f])
-    if updates:
-        params.append(ticket_id)
-        conn = get_db_conn()
-        cur = conn.cursor()
-        cur.execute(f"UPDATE tickets SET {', '.join(updates)} WHERE id = %s", params)
-        conn.commit()
-        cur.close()
-        conn.close()
-    return jsonify({'message': 'Ticket updated'}), 200
-
 
 @app.route('/delete_attachment/<int:attachment_id>', methods=['DELETE'])
 def delete_attachment(attachment_id):

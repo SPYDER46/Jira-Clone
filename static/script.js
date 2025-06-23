@@ -13,9 +13,20 @@
 document.getElementById('openModalBtn').addEventListener('click', () => {
   document.getElementById('ticketModal').classList.add('Create-ticket--active'); 
   loadGameNames();
+  loadAssignees();
 
+  // Right after loadGameNames() and loadAssignees():
   const projectInput = document.getElementById('project');
-  const gameSelect = document.getElementById('ticketGameName');
+  const gameNameInput = document.getElementById('ticketGameName');
+
+  if (projectInput.value.trim()) {
+    // Populate from project input on open
+    fetch(`/api/get_game_by_project?project=${encodeURIComponent(projectInput.value.trim())}`)
+      .then(res => res.json())
+      .then(data => gameNameInput.value = data.game_name || projectInput.value.trim())
+      .catch(console.error);
+  }
+
 
   // Reset and enable input fields
   projectInput.disabled = false;
@@ -47,6 +58,10 @@ document.getElementById('openModalBtn').addEventListener('click', () => {
     e.preventDefault();
     const form = e.target;
     const formData = new FormData(form);
+
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}: ${value}`);
+    }
 
     const gameName = document.getElementById('ticketGameName').value;
     if (!gameName) {
@@ -168,67 +183,95 @@ document.getElementById('openModalBtn').addEventListener('click', () => {
 
   // === Ticket Detail Modal ===
   function showTicketDetails(ticket) {
-    document.getElementById('ticketDetailModal').classList.remove('hidden');
+  document.getElementById('ticketDetailModal').classList.remove('hidden');
+  document.getElementById('detailSummary').value = ticket.summary || '';
+  document.getElementById('detailProject').value = ticket.project || '';
+  document.getElementById('detailType').value = ticket.work_type || 'Task';
+  document.getElementById('detailStatus').value = ticket.status || 'To Do';
+  document.getElementById('detailDescription').value = ticket.description || '';
+  document.getElementById('detailTeam').value = ticket.team || '';
+  document.getElementById('detailGame').value = ticket.game_name || '';
+  document.getElementById('saveTicketBtn').dataset.ticketId = ticket.id;
 
-    document.getElementById('detailSummary').value = ticket.summary || '';
-    document.getElementById('detailProject').value = ticket.project || '';
-    document.getElementById('detailType').value = ticket.work_type || 'Task';
-    document.getElementById('detailStatus').value = ticket.status || 'To Do';
-    document.getElementById('detailDescription').value = ticket.description || '';
-    document.getElementById('detailAssignee').value = ticket.assignee || '';
-    document.getElementById('detailTeam').value = ticket.team || '';
-    document.getElementById('detailGame').value = ticket.game_name || '';
-    document.getElementById('saveTicketBtn').dataset.ticketId = ticket.id;
-
-    if (fixedGameName) {
-      document.getElementById('detailGame').disabled = true;
-    }
-
-    const attachmentsList = document.getElementById('detailAttachmentsList');
-    attachmentsList.innerHTML = '';
-
-    if (ticket.attachments?.length) {
-      const seen = new Set();
-      ticket.attachments.forEach(att => {
-        if (seen.has(att.filename)) return;
-        seen.add(att.filename);
-
-        const ext = att.filename.split('.').pop().toLowerCase();
-        const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext);
-
-        const itemDiv = document.createElement('div');
-        itemDiv.classList.add('attachment-item');
-        itemDiv.dataset.attachmentId = att.id;
-
-        if (isImage) {
-          const img = document.createElement('img');
-          img.src = `/attachment/${att.id}`;
-          img.alt = att.filename;
-          itemDiv.appendChild(img);
-        }
-
-        const link = document.createElement('a');
-        link.href = `/attachment/${att.id}`;
-        link.textContent = att.filename;
-        link.target = '_blank';
-        itemDiv.appendChild(link);
-
-        const removeBtn = document.createElement('button');
-        removeBtn.textContent = 'Remove';
-        removeBtn.classList.add('remove-attachment-btn');
-        removeBtn.addEventListener('click', async () => {
-          if (confirm(`Remove "${att.filename}"?`)) {
-            await removeAttachment(att.id, ticket.id);
-          }
-        });
-        itemDiv.appendChild(removeBtn);
-
-        attachmentsList.appendChild(itemDiv);
-      });
-    } else {
-      attachmentsList.textContent = 'No attachments';
-    }
+  if (fixedGameName) {
+    document.getElementById('detailGame').disabled = true;
   }
+
+  // Load assignees and select the current assignee
+  loadDetailAssignees(ticket.assignee);
+  
+
+  // Attachments rendering code stays the same...
+  const attachmentsList = document.getElementById('detailAttachmentsList');
+  attachmentsList.innerHTML = '';
+
+  if (ticket.attachments?.length) {
+    const seen = new Set();
+    ticket.attachments.forEach(att => {
+      if (seen.has(att.filename)) return;
+      seen.add(att.filename);
+
+      const ext = att.filename.split('.').pop().toLowerCase();
+      const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext);
+
+      const itemDiv = document.createElement('div');
+      itemDiv.classList.add('attachment-item');
+      itemDiv.dataset.attachmentId = att.id;
+
+      if (isImage) {
+        const img = document.createElement('img');
+        img.src = `/attachment/${att.id}`;
+        img.alt = att.filename;
+        itemDiv.appendChild(img);
+      }
+
+      const link = document.createElement('a');
+      link.href = `/attachment/${att.id}`;
+      link.textContent = att.filename;
+      link.target = '_blank';
+      itemDiv.appendChild(link);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = 'Remove';
+      removeBtn.classList.add('remove-attachment-btn');
+      removeBtn.addEventListener('click', async () => {
+        if (confirm(`Remove "${att.filename}"?`)) {
+          await removeAttachment(att.id, ticket.id);
+        }
+      });
+      itemDiv.appendChild(removeBtn);
+
+      attachmentsList.appendChild(itemDiv);
+    });
+  } else {
+    attachmentsList.textContent = 'No attachments';
+  }
+}
+
+  async function loadDetailAssignees(selectedAssignee = '') {
+  try {
+    const res = await fetch('/active_users');
+    const users = await res.json();
+
+    const detailAssignee = document.getElementById('detailAssignee');
+    detailAssignee.innerHTML = '<option value="">Select Assignee</option>';
+
+    users.forEach(u => {
+      const option = document.createElement('option');
+      option.value = u.id;       // Use ID as value
+      option.textContent = u.name; // Display name
+      detailAssignee.appendChild(option);
+    });
+
+    if (selectedAssignee) {
+      // selectedAssignee might be id or name, adapt accordingly
+      detailAssignee.value = selectedAssignee; // set selected assignee by id
+    }
+  } catch (err) {
+    console.error('Failed to load assignees:', err);
+  }
+}
+
 
   async function removeAttachment(attachmentId, ticketId) {
     try {
@@ -297,29 +340,25 @@ document.getElementById('openModalBtn').addEventListener('click', () => {
   });
 
   // === Load Game Names ===
-  async function loadGameNames() {
-    try {
-      const response = await fetch('/get_game_names');
-      const games = await response.json();
+ async function loadGameNames() {
+  const projectInput = document.getElementById('project');
+  const gameNameInput = document.getElementById('ticketGameName');
 
-      const gameFilter = document.getElementById('filterGame');
-      games.forEach(game => {
-        const opt = document.createElement('option');
-        opt.value = game;
-        opt.textContent = game;
-        if (gameFilter) gameFilter.appendChild(opt.cloneNode(true));
-        if (gameSelect) gameSelect.appendChild(opt);
-      });
-    } catch (err) {
-      console.error('Failed to load game names:', err);
+  projectInput.addEventListener('input', () => {
+    const pname = projectInput.value.trim();
+    if (!fixedGameName) {
+      gameNameInput.value = pname; // Sync gameName to project name
     }
-  }
+  });
+
+}
 
   // === Filters & Init ===
   document.getElementById('filterType').addEventListener('change', loadTickets);
   document.getElementById('searchInput').addEventListener('input', loadTickets);
   document.getElementById('backToProjectBtn').addEventListener('click', () => {
-    window.location.href = '/projects';
+    window.location.href = '/project?email=' + encodeURIComponent(userEmail);
+
   });
 
 const ticketDetailModal = document.getElementById('ticketDetailModal');
@@ -341,26 +380,33 @@ cancelTicketBtn.addEventListener('click', (e) => {
 // -------------- invite user
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Invite modal handlers
   const openInviteBtn = document.getElementById('openInviteBtn');
   const inviteModal = document.getElementById('inviteModal');
   const inviteCancelBtn = document.getElementById('inviteCancelBtn');
 
-  openInviteBtn.addEventListener('click', () => {
+  openInviteBtn?.addEventListener('click', () => {
     inviteModal.classList.add('active');
   });
 
-  inviteCancelBtn.addEventListener('click', () => {
+  inviteCancelBtn?.addEventListener('click', () => {
     inviteModal.classList.remove('active');
   });
+
+  // Back to project button
+  const backBtn = document.getElementById('backToProjectBtn');
+  backBtn?.addEventListener('click', () => {
+    console.log("Back button clicked");
+    window.location.href = '/projects';
+  });
 });
-
-
 
 // -------------- Create Ticket
 document.addEventListener('DOMContentLoaded', () => {
   const modal = document.getElementById('ticketModal');
   const openBtn = document.getElementById('openModalBtn');
   const cancelBtn = document.getElementById('cancelTicketBtn');
+  
 
   openBtn?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -372,6 +418,79 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.classList.remove('Create-ticket--active');
   });
 });
+
+
+function loadAssignees() {
+  fetch('/active_users')
+    .then(res => res.json())
+    .then(users => {
+      // Fill assignee dropdown in Create Ticket modal
+      const createDropdown = document.getElementById('assigneeDropdown');
+      createDropdown.innerHTML = '<option value="">Select Assignee</option>';
+      // Fill assignee dropdown in Ticket Detail modal
+      const detailDropdown = document.getElementById('detailAssignee');
+      detailDropdown.innerHTML = '<option value="">Select Assignee</option>';
+
+      users.forEach(u => {
+        const option1 = document.createElement('option');
+        option1.value = u.id;
+        option1.textContent = u.name;
+        createDropdown.appendChild(option1);
+
+        const option2 = document.createElement('option');
+        option2.value = u.name;  // or use u.id if your ticket stores assignee by ID
+        option2.textContent = u.name;
+        detailDropdown.appendChild(option2);
+      });
+    });
+}
+
+
+// Loader
+
+    function showLoader() {
+        document.getElementById('loader-overlay').style.display = 'flex';
+    }
+
+    function hideLoader() {
+        document.getElementById('loader-overlay').style.display = 'none';
+    }
+
+    // Attach loader to all form submissions
+    document.addEventListener("DOMContentLoaded", function () {
+        // On all forms
+        document.querySelectorAll("form").forEach(form => {
+            form.addEventListener("submit", function () {
+                showLoader();
+            });
+        });
+
+        // On buttons with fetch/ajax
+        document.querySelectorAll("button").forEach(button => {
+            button.addEventListener("click", function (e) {
+                // Optional: detect if button triggers fetch/XHR
+                if (button.dataset.loader !== "false") {
+                    showLoader();
+                    setTimeout(() => {
+                        // Just in case it’s not a form and no fetch happens
+                        hideLoader();
+                    }, 3000); 
+                }
+            });
+        });
+
+        // Automatically hide loader on page load
+        window.addEventListener("load", hideLoader);
+    });
+
+    // Hook for manual fetch calls
+    function fetchWithLoader(url, options) {
+        showLoader();
+        return fetch(url, options).finally(hideLoader);
+    }
+
+    // Projecthtml page
+    
 
 
 window.addEventListener('load', () => {

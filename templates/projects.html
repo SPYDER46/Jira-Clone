@@ -3,6 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <title>BUG FREE</title>
+      <div style="width: 100%; max-width: 900px; display: flex; justify-content: flex-end; margin-bottom: 10px;">
+      <form method="POST" action="/logout">
+        <button type="submit" style="
+          background-color: #dc3545;
+          border: none;
+          color: white;
+          padding: 10px 16px;
+          border-radius: 6px;
+          font-size: 15px;
+          cursor: pointer;
+          transition: background-color 0.3s;
+        ">Logout</button>
+      </form>
+    </div>
+
   <style>
     /* Reset */
     * {
@@ -359,7 +374,9 @@
 
   // Initial load
   loadProjects();
+  
 </script>
 
+ <script src="../static/script.js"></script>
 </body>
 </html>
