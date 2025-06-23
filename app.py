@@ -545,28 +545,65 @@ def submit_ticket():
         conn = get_db_conn()
         cur = conn.cursor()
 
-        # Insert ticket without attachment
+        # Insert ticket
         cur.execute(
             """
             INSERT INTO tickets 
             (project, work_type, status, summary, description, assignee, team, game_name)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-        """, (project, work_type, status, summary, description, assignee, team, game_name))
+            """,
+            (project, work_type, status, summary, description, assignee, team, game_name)
+        )
         ticket_id = cur.fetchone()[0]
 
+        # Insert attachments
         files = request.files.getlist('attachment')  
         for file in files:
             if file and file.filename:
                 filename = secure_filename(file.filename)
-                data = file.read()
+                file_data = file.read()
                 cur.execute(
                     "INSERT INTO ticket_attachments (ticket_id, filename, data) VALUES (%s, %s, %s)",
-                    (ticket_id, filename, data)
+                    (ticket_id, filename, file_data)
                 )
 
         conn.commit()
         cur.close()
         conn.close()
+
+        if assignee:
+            try:
+                conn = get_db_conn()
+                cur = conn.cursor()
+                cur.execute("SELECT name, email FROM users WHERE id = %s", (assignee,))
+                user = cur.fetchone()
+                cur.close()
+                conn.close()
+
+                if user:
+                    assignee_name, assignee_email = user
+                    html_content = f"""
+                    <html>
+                    <body>
+                        <p>Hello {assignee_name},</p>
+                        <p>You have been assigned a new ticket:</p>
+                        <ul>
+                            <li><strong>Summary:</strong> {summary}</li>
+                            <li><strong>Description:</strong> {description}</li>
+                            <li><strong>Project:</strong> {project}</li>
+                            <li><strong>Work Type:</strong> {work_type}</li>
+                            <li><strong>Status:</strong> {status}</li>
+                            <li><strong>Game Name:</strong> {game_name}</li>
+                        </ul>
+                        <p>Please log in to <a href="http://localhost:5000">BUG FREE</a> to view the details.</p>
+                    </body>
+                    </html>
+                    """
+                    send_email(assignee_email, f"New Ticket Assigned: {summary}", html_content)
+                    print(f"Email sent to {assignee_email}")
+            except Exception as e:
+                print(f"Error sending email to assignee: {e}")
+
         return jsonify({'ticket_id': ticket_id}), 201
 
     except Exception as e:
