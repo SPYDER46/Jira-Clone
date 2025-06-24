@@ -730,3 +730,11 @@
   transform: scale(1.05);
 }
 
+/* Drag and Drop */
+
+.sortable-ghost {
+  opacity: 0.6;
+  background-color: #f0f0f0;
+  border: 2px dashed #007bff;
+}
+

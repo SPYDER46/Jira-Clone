@@ -91,10 +91,10 @@ document.getElementById('openModalBtn').addEventListener('click', () => {
   document.getElementById('inviteForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('inviteName').value.trim();
-    const role = document.getElementById('inviteRole').value.trim();
+    // const role = document.getElementById('inviteRole').value.trim();
     const email = document.getElementById('inviteEmail').value.trim();
 
-    if (!name || !role || !email) {
+    if (!name ||!email) {
       alert('Please fill all fields.');
       return;
     }
@@ -103,7 +103,7 @@ document.getElementById('openModalBtn').addEventListener('click', () => {
       const response = await fetch('/invite_user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, role, email })
+        body: JSON.stringify({ name, email })
       });
 
       const result = await safeJson(response);
@@ -143,7 +143,14 @@ document.getElementById('openModalBtn').addEventListener('click', () => {
 
   try {
     const response = await fetch(url);
-    const tickets = await safeJson(response);
+        let tickets = await safeJson(response);
+    if (!response.ok) {
+      alert('Error loading tickets: ' + (tickets?.error || response.statusText));
+      return;
+    }
+
+    tickets = applyFilters(tickets);
+
 
     if (!response.ok) {
       alert('Error loading tickets: ' + (tickets?.error || response.statusText));
@@ -489,9 +496,31 @@ function loadAssignees() {
         return fetch(url, options).finally(hideLoader);
     }
 
-    // Projecthtml page
-    
+    // TeamName Filter
 
+    const searchInput = document.getElementById('searchInput');
+    const filterType = document.getElementById('filterType');
+    const filterTeam = document.getElementById('filterTeam');
+
+    // Modify your load/display logic or add this where you're filtering tickets
+    function applyFilters(tickets) {
+      const searchTerm = searchInput.value.trim().toLowerCase();
+      const selectedType = filterType.value;
+      const selectedTeam = filterTeam.value;
+
+      return tickets.filter(ticket => {
+        const matchesSearch = !searchTerm || ticket.summary.toLowerCase().includes(searchTerm);
+        const matchesType = !selectedType || ticket.workType === selectedType;
+        const matchesTeam = !selectedTeam || ticket.team === selectedTeam;
+
+        return matchesSearch && matchesType && matchesTeam;
+      });
+    }
+
+    // Add listeners to filters
+    filterType.addEventListener('change', loadTickets);
+    filterTeam.addEventListener('change', loadTickets);
+    searchInput.addEventListener('input', loadTickets);
 
 window.addEventListener('load', () => {
   loadTickets();

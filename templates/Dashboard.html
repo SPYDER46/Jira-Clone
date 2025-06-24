@@ -23,6 +23,15 @@
         <option value="Task">Task</option>
         <option value="Bug">Bug</option>
       </select>
+      <select id="filterTeam" class="un-filter-select">
+        <option value="">All Teams</option>
+        <option value="Developer">Developer</option>
+        <option value="Tester">Tester</option>
+        <option value="BackEnd Developer">BackEnd Developer</option>
+        <option value="UI/UX">UI/UX</option>
+        <option value="UI/UX">Animation</option>
+      </select>
+
       <button id="backToProjectBtn" class="un-btn">Back to Project</button>
       <!-- Invite User Button (outside the modal) -->
           <button id="openInviteBtn" class="un-btn">Invite User</button>
@@ -58,6 +67,7 @@
 
   <!-- Ticket Board Columns -->
   <div class="un-board">
+    
     <div class="un-column" id="todo">
       <h2 class="un-column__header">To Do</h2>
     </div>
@@ -93,7 +103,18 @@
             <option value="">Select Assignee</option>
           </select>
 
-        <div class="Create-ticket-group"><label for="team">Team</label><input type="text" id="team" name="team" /></div>
+        <div class="Create-ticket-group">
+          <label for="team">Team</label>
+          <select id="team" name="team" required>
+            <option value="">Select Team</option>
+            <option value="Developer">Developer</option>
+            <option value="Tester">Tester</option>
+            <option value="BackEnd Developer">BackEnd Developer</option>
+            <option value="UI/UX">UI/UX</option>
+            <option value="Animation">Animation</option>
+          </select>
+        </div>
+
           <div class="Create-ticket-group">
             <label for="ticketGameName">Game Name</label>
             <input type="text" id="ticketGameName" name="gameName" required />
@@ -126,7 +147,17 @@
             <option value="">Select Assignee</option>
           </select>
         </div>
-      <div class="ticket-detail-modal__field"><label for="detailTeam">Team:</label><input type="text" id="detailTeam" /></div>
+        <div class="ticket-detail-modal__field">
+          <label for="detailTeam">Team:</label>
+          <select id="detailTeam" name="detailTeam" required>
+            <option value="">Select Team</option>
+            <option value="Developer">Developer</option>
+            <option value="Tester">Tester</option>
+            <option value="BackEnd Developer">BackEnd Developer</option>
+            <option value="UI/UX">UI/UX</option>
+            <option value="Animation">Animation</option>
+          </select>
+        </div>
       <div class="ticket-detail-modal__field"><label for="detailGame">Game Name:</label><input type="text" id="detailGame" /></div>
 
       <!-- Attachment Section -->
@@ -200,7 +231,6 @@
     35% { transform: scale3D(0, 0, 1); }
 }
 </style>
-
 
 
 </body>

@@ -56,15 +56,11 @@ def dashboard():
 @app.route('/project')
 def project():
     email = request.args.get('email')
-    # Optionally, use the email to fetch user or project info
-    # For now, just render a template
     return render_template('projects.html', email=email)
 
 @app.route('/accept_invite', methods=['GET'])
 def accept_invite_form():
-
     return render_template('accept_invite.html')
-
 
 @app.route('/invite_user', methods=['POST'])
 def invite_user():
@@ -105,7 +101,6 @@ def invite_user():
     send_email(email, "You're invited!", html_body)
     return jsonify({'message': 'Invitation sent'})
 
-
 @app.route('/accept_invite', methods=['POST'])
 def accept_invite():
     data = request.json
@@ -120,12 +115,10 @@ def accept_invite():
 
     cur.execute("UPDATE users SET name = %s, is_active = TRUE WHERE email = %s", (name, email))
     conn.commit()
-
     cur.close()
     conn.close()
 
     return jsonify({'message': 'Invitation accepted'})
-
 
 @app.route('/active_users', methods=['GET'])
 def active_users():
@@ -136,7 +129,6 @@ def active_users():
     cur.close()
     conn.close()
     return jsonify(users)
-
 
 @app.route('/assign_user', methods=['POST'])
 def assign_user():
@@ -233,7 +225,6 @@ def register():
         print(f"Failed to send welcome email: {e}")
 
     return redirect('/login')
-
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -346,18 +337,19 @@ def update_ticket(ticket_id):
         conn.commit()
         cur.close()
         conn.close()
-
         return jsonify({'message': 'Attachment saved'}), 200
 
-    # JSON update
     data = request.json or {}
-    fields = ['summary','project','work_type','status','description','assignee','team','game_name']
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    allowed_fields = ['summary','project','work_type','status','description','assignee','team','game_name']
 
     conn = get_db_conn()
     cur = conn.cursor()
+
     cur.execute("SELECT assignee, status, summary FROM tickets WHERE id = %s", (ticket_id,))
     old_ticket = cur.fetchone()
-
     if not old_ticket:
         cur.close()
         conn.close()
@@ -365,67 +357,68 @@ def update_ticket(ticket_id):
 
     old_assignee, old_status, summary = old_ticket
 
-    updates, params = [], []
-    for f in fields:
-        if f in data:
-            updates.append(f"{f} = %s")
-            params.append(data[f])
+    updates = []
+    params = []
+    for field in allowed_fields:
+        if field in data:
+            updates.append(f"{field} = %s")
+            params.append(data[field])
 
-    if updates:
-        params.append(ticket_id)
-        cur.execute(f"UPDATE tickets SET {', '.join(updates)} WHERE id = %s", params)
-        conn.commit()
+    if not updates:
+        cur.close()
+        conn.close()
+        return jsonify({'message': 'No fields to update'}), 400
 
-    # Get updated status and assignee
-    new_status = data.get('status')
-    new_assignee = data.get('assignee')
+    params.append(ticket_id)
+    update_query = f"UPDATE tickets SET {', '.join(updates)} WHERE id = %s"
+    cur.execute(update_query, params)
+    conn.commit()
 
-    should_notify = False
+    new_status = data.get('status', old_status)
+    new_assignee = data.get('assignee', old_assignee)
 
-    # If assignee or status changed, notify
-    if (new_assignee and str(new_assignee) != str(old_assignee)) or (new_status and new_status != old_status):
-        should_notify = True
+    if (new_status != old_status) or (new_assignee != old_assignee):
+        if new_assignee:
+            cur.execute("SELECT email, name FROM users WHERE id = %s", (new_assignee,))
+            user = cur.fetchone()
+            if user:
+                to_email, user_name = user
 
-    if should_notify and new_assignee:
-        cur.execute("SELECT email, name FROM users WHERE id = %s", (new_assignee,))
-        user = cur.fetchone()
-        if user:
-            to_email, user_name = user
+                cur.execute("""
+                    SELECT summary, description, project, status, work_type, game_name
+                    FROM tickets WHERE id = %s
+                """, (ticket_id,))
+                ticket_details = cur.fetchone()
 
-            cur.execute("""
-                SELECT summary, description, project, status, work_type, game_name
-                FROM tickets WHERE id = %s
-            """, (ticket_id,))
-            ticket_details = cur.fetchone()
+                if ticket_details:
+                    summary, description, project, status, work_type, game_name = ticket_details
 
-            if ticket_details:
-                summary, description, project, status, work_type, game_name = ticket_details
-
-                html_content = f"""
-                <html>
-                <body>
-                    <p>Hello {user_name},</p>
-                    <p>This ticket has been updated:</p>
-                    <ul>
-                        <li><strong>Summary:</strong> {summary}</li>
-                        <li><strong>Description:</strong> {description}</li>
-                        <li><strong>Project:</strong> {project}</li>
-                        <li><strong>Status:</strong> {status}</li>
-                        <li><strong>Work Type:</strong> {work_type}</li>
-                        <li><strong>Game Name:</strong> {game_name}</li>
-                    </ul>
-                           </body>
-                </html>
-                """
-                try:
-                    send_email(to_email, f"Ticket Updated: {summary}", html_content)
-                    print(f"Email sent to {to_email}")
-                except Exception as e:
-                    print(f"Error sending update email: {e}")
+                    html_content = f"""
+                    <html>
+                    <body>
+                        <p>Hello {user_name},</p>
+                        <p>This ticket has been updated:</p>
+                        <ul>
+                            <li><strong>Summary:</strong> {summary}</li>
+                            <li><strong>Description:</strong> {description}</li>
+                            <li><strong>Project:</strong> {project}</li>
+                            <li><strong>Status:</strong> {status}</li>
+                            <li><strong>Work Type:</strong> {work_type}</li>
+                            <li><strong>Game Name:</strong> {game_name}</li>
+                        </ul>
+                    </body>
+                    </html>
+                    """
+                    try:
+                        send_email(to_email, f"Ticket Updated: {summary}", html_content)
+                        print(f"Notification email sent to {to_email}")
+                    except Exception as e:
+                        print(f"Error sending update email: {e}")
 
     cur.close()
     conn.close()
-    return jsonify({'message': 'Ticket updated'})
+
+    return jsonify({'message': 'Ticket updated successfully'})
 
 @app.route('/api/assignees')
 def get_project_assignees():
@@ -450,7 +443,6 @@ def get_project_assignees():
     conn.close()
 
     return jsonify([{'id': row[0], 'name': row[1]} for row in rows])
-
 
 @app.route('/api/projects', methods=['GET'])
 def get_projects():
@@ -545,7 +537,6 @@ def submit_ticket():
         conn = get_db_conn()
         cur = conn.cursor()
 
-        # Insert ticket
         cur.execute(
             """
             INSERT INTO tickets 
@@ -556,7 +547,6 @@ def submit_ticket():
         )
         ticket_id = cur.fetchone()[0]
 
-        # Insert attachments
         files = request.files.getlist('attachment')  
         for file in files:
             if file and file.filename:
