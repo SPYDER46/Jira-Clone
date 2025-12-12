@@ -128,15 +128,21 @@ document.getElementById('openModalBtn').addEventListener('click', () => {
   // === Load Tickets ===
   async function loadTickets() {
   console.log('Loading tickets...');
-  const workType = document.getElementById('filterType').value;
-  const gameName = '';
-  const searchText = document.getElementById('searchInput').value.trim();
+const workType = document.getElementById('filterType').value;
+const urlParams = new URLSearchParams(window.location.search);
+const gameName = urlParams.get('game_name') || "";
+
+const searchText = document.getElementById('searchInput').value.trim();
+
 
   console.log({ workType, gameName, searchText });
 
   let url = '/get_tickets?';
   if (workType) url += `workType=${encodeURIComponent(workType)}&`;
-  if (gameName) url += `gameName=${encodeURIComponent(gameName)}&`;
+  if (gameName && gameName !== "null") {
+    url += `gameName=${encodeURIComponent(gameName)}&`;
+  }
+
   if (searchText) url += `search=${encodeURIComponent(searchText)}&`;
 
   console.log('Fetch URL:', url);

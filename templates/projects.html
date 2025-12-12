@@ -284,7 +284,6 @@
         const searchVal = searchInput.value.trim().toLowerCase();
         const phaseVal = phaseFilter.value;
 
-        // Client-side filtering
         const filteredData = data.filter(p => {
           const matchesSearch = p.game_name.toLowerCase().includes(searchVal);
           const matchesPhase = phaseVal ? p.phase === phaseVal : true;
@@ -335,7 +334,7 @@
     popupOverlay.style.display = 'none';
   };
 
-  // Save new project
+  // Save new project (with duplicate check)
   saveProjectBtn.onclick = () => {
     const gameName = gameNameInput.value.trim();
     const phase = phaseInput.value;
@@ -347,25 +346,40 @@
       return;
     }
 
-    fetch('/create_project', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game_name: gameName, phase, categories })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.error) {
-        alert('Error: ' + data.error);
-      } else {
-        alert('Project created successfully');
-        popupOverlay.style.display = 'none';
-        loadProjects();
-      }
-    })
-    .catch(err => {
-      alert('Error creating project');
-      console.error(err);
-    });
+    // Check dynamically if project already exists
+    fetch('api/projects')
+      .then(res => res.json())
+      .then(data => {
+        const exists = data.some(
+          p => p.game_name.toLowerCase() === gameName.toLowerCase()
+        );
+
+        if (exists) {
+          alert("This project already exists! Choose another name.");
+          return;
+        }
+
+        // If not exists → proceed to create
+        fetch('/create_project', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ game_name: gameName, phase, categories })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              alert('Error: ' + data.error);
+            } else {
+              alert('Project created successfully');
+              popupOverlay.style.display = 'none';
+              loadProjects();
+            }
+          })
+          .catch(err => {
+            alert('Error creating project');
+            console.error(err);
+          });
+      });
   };
 
   // Load projects on search/filter change
@@ -374,7 +388,6 @@
 
   // Initial load
   loadProjects();
-  
 </script>
 
  <script src="../static/script.js"></script>

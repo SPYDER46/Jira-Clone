@@ -12,34 +12,34 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # max 16MB upload
 app.secret_key = 'dev-secret-key-123'
 
-# # DB connection info — replace with your credentials
-# DB_HOST = 'localhost'
-# DB_NAME = 'JiraCloneDB'
-# DB_USER = 'postgres'
-# DB_PASS = 'root'
+# DB connection info 
+DB_HOST = 'localhost'
+DB_NAME = 'JiraCloneDB'
+DB_USER = 'postgres'
+DB_PASS = 'root'
 
-# def get_db_conn():
-#     return psycopg2.connect(
-#         host=DB_HOST,
-#         dbname=DB_NAME,
-#         user=DB_USER,
-#         password=DB_PASS
-#     )
+def get_db_conn():
+    return psycopg2.connect(
+        host=DB_HOST,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
 
-def get_connection():
-    url = os.environ.get('DATABASE_URL')
-    if not url:
-        raise Exception("DATABASE_URL not found in environment variables.")
+# def get_connection():
+#     url = os.environ.get('DATABASE_URL')
+#     if not url:
+#         raise Exception("DATABASE_URL not found in environment variables.")
 
-    parsed = urlparse(url)  
-    db_config = {
-        'dbname': parsed.path[1:],  
-        'user': parsed.username,
-        'password': parsed.password,
-        'host': parsed.hostname,
-        'port': parsed.port
-    }
-    return psycopg2.connect(**db_config)
+#     parsed = urlparse(url)  
+#     db_config = {
+#         'dbname': parsed.path[1:],  
+#         'user': parsed.username,
+#         'password': parsed.password,
+#         'host': parsed.hostname,
+#         'port': parsed.port
+#     }
+#     return psycopg2.connect(**db_config)
 
 
 def send_email(to_email, subject, html_content):
@@ -170,7 +170,7 @@ def assign_user():
     cur.execute("INSERT INTO project_assignments (user_id, project_name) VALUES (%s, %s)", (user_id, project_name))
     conn.commit()
 
-    # Optional: Fetch project/game info to include in the email
+    # project/game info to include in the email
     cur.execute("SELECT phase, category FROM projects WHERE game_name = %s", (project_name,))
     proj_info = cur.fetchone()
     phase = proj_info[0] if proj_info else 'N/A'
@@ -504,7 +504,7 @@ def create_project():
 
     game_name = data.get('game_name', '').strip()
     phase = data.get('phase', '').strip()
-    categories = data.get('categories', '').strip()
+    categories = data.get('categories', '').strip()  
 
     if not game_name:
         return jsonify({'error': 'Game name is required'}), 400
@@ -514,18 +514,31 @@ def create_project():
     try:
         conn = get_db_conn()
         cur = conn.cursor()
+
+        # Check if project already exists
+        cur.execute("SELECT 1 FROM projects WHERE game_name = %s", (game_name,))
+        exists = cur.fetchone()
+
+        if exists:
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Project already exists'}), 400
+
+        # Insert new project
         cur.execute(
-        "INSERT INTO projects (game_name, phase, category) VALUES (%s, %s, %s)",
-        (game_name, phase, categories)
-    )
+            "INSERT INTO projects (game_name, phase, category) VALUES (%s, %s, %s)",
+            (game_name, phase, categories)
+        )
 
         conn.commit()
         cur.close()
         conn.close()
         return jsonify({'message': 'Project created successfully'})
+
     except Exception as e:
         print(f"Error creating project: {e}")
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/get_game_names', methods=['GET'])
 def get_game_names():
@@ -541,7 +554,7 @@ def get_game_names():
 @app.route('/submit_ticket', methods=['POST'])
 def submit_ticket():
     data = request.form
-    project = data.get('project')
+    project = data.get('projectInput')
     work_type = data.get('workType')
     status = data.get('status')
     summary = data.get('summary')
@@ -549,6 +562,7 @@ def submit_ticket():
     assignee = data.get('assignee')
     team = data.get('team')
     game_name = data.get('gameName')
+
 
     try:
         conn = get_db_conn()

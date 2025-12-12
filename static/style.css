@@ -738,3 +738,38 @@
   border: 2px dashed #007bff;
 }
 
+/* Center the Create Ticket Modal */
+#ticketModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+/* Center the modal content */
+.Create-ticket__content {
+    background: white;
+    width: 450px;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0px 0px 20px rgba(0,0,0,0.3);
+    animation: fadeIn 0.25s ease-out;
+}
+
+/* Smooth popup animation */
+@keyframes fadeIn {
+    from {
+        transform: scale(0.95);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
